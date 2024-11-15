@@ -5,13 +5,12 @@ import pusher from '@/lib/pusher';
 export async function POST(request) {
   try {
     await connectMongo();
-    const body = await request.json();
-    const { username, content } = body;
+    const { username, content } = await request.json();
 
-    // Save the message to MongoDB
+    // Save the message to the database
     const newMessage = await Message.create({ username, content });
 
-    // Trigger Pusher for real-time updates
+    // Trigger Pusher event
     await pusher.trigger('chat-channel', 'message-event', {
       username,
       content,
@@ -22,9 +21,10 @@ export async function POST(request) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error saving message:', error.message);
-    return new Response(JSON.stringify({ success: false, error: 'Failed to save message' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('Error saving message:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Failed to save message' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
