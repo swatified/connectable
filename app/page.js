@@ -22,7 +22,6 @@ export default function Home() {
     }
   }, []);
 
-  // Login function
   const login = async () => {
     try {
       const res = await fetch('/api/login', {
@@ -45,7 +44,6 @@ export default function Home() {
     }
   };
 
-  // Fetch messages from the server
   const fetchMessages = async () => {
     try {
       const res = await fetch('/api/getMessages');
@@ -58,15 +56,23 @@ export default function Home() {
     }
   };
 
-  // Set up Pusher for real-time updates
   const setupPusher = () => {
+    Pusher.logToConsole = true; // Enable Pusher debugging
+
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+      forceTLS: true, // Ensure secure connection
+      enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'], // Fallback transports
     });
 
     const channel = pusher.subscribe('chat-channel');
     channel.bind('message-event', (data) => {
-      setMessages((prev) => [...prev, data]);
+      console.log('Received Pusher event:', data); // Log received events
+      setMessages((prevMessages) => [...prevMessages, data]);
+    });
+
+    channel.bind('pusher:subscription_error', (error) => {
+      console.error('Pusher subscription error:', error);
     });
 
     return () => {
@@ -74,7 +80,6 @@ export default function Home() {
     };
   };
 
-  // Send a new message
   const sendMessage = async () => {
     if (!input) return;
 
@@ -92,7 +97,6 @@ export default function Home() {
     }
   };
 
-  // Logout function
   const logout = () => {
     localStorage.removeItem('username'); // Clear username from localStorage
     setAuthenticated(false);
