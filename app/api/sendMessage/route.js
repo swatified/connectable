@@ -7,8 +7,14 @@ export async function POST(request) {
     await connectMongo();
     const { username, content } = await request.json();
 
+    console.log('Triggering Pusher event:', { username, content });
+
     // Save the message to the database
-    const newMessage = await Message.create({ username, content });
+    const newMessage = await Message.create({
+      username,
+      content,
+      timestamp: new Date(),
+    });
 
     // Trigger Pusher event
     await pusher.trigger('chat-channel', 'message-event', {
@@ -21,10 +27,10 @@ export async function POST(request) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error saving message:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Failed to save message' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    console.error('Error in sendMessage API:', error.message);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
