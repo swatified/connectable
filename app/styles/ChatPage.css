@@ -1,135 +1,157 @@
+/* General Styles */
 .auth-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-color: #1e1e2f;
-    color: white;
-  }
-  
-  .auth-container input {
-    padding: 10px;
-    margin: 10px;
-    width: 300px;
-    border-radius: 5px;
-    border: none;
-    font-size: 1rem;
-  }
-  
-  .auth-container button {
-    padding: 10px 20px;
-    background-color: #50fa7b;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  
-  .auth-container button:hover {
-    background-color: #45e66e;
-  }
-  
-  /* Chat CSS from earlier remains */
-  
-  
-  
-  
-  /* Chat Container */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #1e1e2f;
+  color: white;
+}
+
+.auth-container input {
+  padding: 10px;
+  margin: 10px;
+  width: 300px;
+  border-radius: 5px;
+  border: none;
+  font-size: 1rem;
+}
+
+.auth-container button {
+  padding: 10px 20px;
+  background-color: #50fa7b;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.auth-container button:hover {
+  background-color: #45e66e;
+}
+
+/* Chat Container */
 .chat-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background-color: #1e1e2f;
-    color: white;
-    font-family: Arial, sans-serif;
-  }
-  
-  /* Header */
-  .chat-header {
-    padding: 20px;
-    background-color: #282a36;
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: bold;
-    border-bottom: 2px solid #44475a;
-  }
-  
-  /* Chat Body */
-  .chat-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow-y: scroll;
-    padding: 20px;
-  }
-  
-  .chat-messages {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .chat-message {
-    padding: 10px;
-    background-color: #44475a;
-    border-radius: 10px;
-    width: fit-content;
-    max-width: 70%;
-    word-wrap: break-word;
-    color: #f8f8f2;
-  }
-  
-  .chat-message strong {
-    color: #50fa7b;
-  }
-  
-  /* Footer */
-  .chat-footer {
-    padding: 20px;
-    background-color: #282a36;
-    border-top: 2px solid #44475a;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .username-input,
-  .message-input {
-    padding: 10px;
-    font-size: 1rem;
-    border-radius: 5px;
-    border: none;
-    width: 100%;
-  }
-  
-  .message-input-section {
-    display: flex;
-    gap: 10px;
-  }
-  
-  .send-button {
-    background-color: #50fa7b;
-    color: black;
-    font-size: 1rem;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  
-  .send-button:hover {
-    background-color: #45e66e;
-  }
-  
-  .spoiler {
-    background-color: black;
-    color: black;
-    cursor: pointer;
-  }
-  
-  .spoiler:hover {
-    color: white;
-  }
-  
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #1e1e2f;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.chat-header {
+  padding: 20px;
+  background-color: #282a36;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-bottom: 2px solid #44475a;
+}
+
+.chat-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: scroll;
+  padding: 20px;
+}
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-message {
+  padding: 10px;
+  background-color: #44475a;
+  border-radius: 10px;
+  width: fit-content;
+  max-width: 70%;
+  word-wrap: break-word;
+  color: #f8f8f2;
+}
+
+.chat-message strong {
+  color: #50fa7b;
+}
+
+/* Footer Section */
+.chat-footer {
+  padding: 20px;
+  background-color: #282a36;
+  border-top: 2px solid #44475a;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.message-input {
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 5px;
+  border: none;
+  flex: 1;
+}
+
+.spoiler {
+  background-color: black;
+  color: black;
+  cursor: pointer;
+}
+
+.spoiler:hover {
+  color: white;
+}
+
+
+.send-button {
+  background-color: #50fa7b;
+  color: black;
+  font-size: 1rem;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.send-button:hover {
+  background-color: #45e66e;
+}
+
+/* Audio Recording Timer */
+.recording-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ff5555;
+}
+
+.stop-button {
+  background-color: #ff5555;
+  color: white;
+  font-size: 1rem;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.stop-button:hover {
+  background-color: #e44e4e;
+}
+
+/* File Upload Icon */
+.icon {
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.icon:hover {
+  color: #50fa7b;
+}
