@@ -123,3 +123,13 @@
     background-color: #45e66e;
   }
   
+  .spoiler {
+    background-color: black;
+    color: black;
+    cursor: pointer;
+  }
+  
+  .spoiler:hover {
+    color: white;
+  }
+  

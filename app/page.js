@@ -32,10 +32,10 @@ export default function Home() {
 
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('username', username); // Save username to localStorage
+        localStorage.setItem('username', username);
         setAuthenticated(true);
-        fetchMessages(); // Fetch messages after login
-        setupPusher(); // Real-time messaging
+        fetchMessages();
+        setupPusher();
       } else {
         alert('Invalid username or password');
       }
@@ -57,17 +57,15 @@ export default function Home() {
   };
 
   const setupPusher = () => {
-    Pusher.logToConsole = true; // Enable Pusher debugging
+    Pusher.logToConsole = true;
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-      forceTLS: true, // Ensure secure connection
-      enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'], // Fallback transports
+      forceTLS: true,
     });
 
     const channel = pusher.subscribe('chat-channel');
     channel.bind('message-event', (data) => {
-      console.log('Received Pusher event:', data); // Log received events
       setMessages((prevMessages) => [...prevMessages, data]);
     });
 
@@ -76,18 +74,21 @@ export default function Home() {
     });
 
     return () => {
-      pusher.unsubscribe('chat-channel');
+      channel.unbind_all();
+      channel.unsubscribe();
     };
   };
 
   const sendMessage = async () => {
-    if (!input) return;
+    if (!input.trim()) return;
 
     try {
+      const formattedContent = formatMessage(input);
+
       const res = await fetch('/api/sendMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, content: input }),
+        body: JSON.stringify({ username, content: formattedContent }),
       });
 
       const data = await res.json();
@@ -98,10 +99,30 @@ export default function Home() {
   };
 
   const logout = () => {
-    localStorage.removeItem('username'); // Clear username from localStorage
+    localStorage.removeItem('username');
     setAuthenticated(false);
     setUsername('');
     setMessages([]);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.ctrlKey) {
+      e.preventDefault();
+      sendMessage();
+    } else if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      setInput((prev) => `${prev}\n`);
+    }
+  };
+
+  const formatMessage = (message) => {
+    let formatted = message;
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold
+    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>'); // Italics
+    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>'); // Strikethrough
+    formatted = formatted.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler">$1</span>'); // Spoiler
+    formatted = formatted.replace(/\n/g, '<br>'); // Newline to <br>
+    return formatted;
   };
 
   if (!authenticated) {
@@ -138,7 +159,7 @@ export default function Home() {
           {messages.map((msg, idx) => (
             <div key={idx} className="chat-message">
               <strong>{msg.username}: </strong>
-              {msg.content}{' '}
+              <span dangerouslySetInnerHTML={{ __html: msg.content }}></span>
               <span className="timestamp">
                 ({new Date(msg.timestamp).toLocaleTimeString()})
               </span>
@@ -147,12 +168,12 @@ export default function Home() {
         </div>
       </main>
       <footer className="chat-footer">
-        <input
+        <textarea
           className="message-input"
-          type="text"
           placeholder="Type a message"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
         />
         <button className="send-button" onClick={sendMessage}>
           Send
