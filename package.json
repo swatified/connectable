@@ -9,8 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "child_process": "^1.0.2",
     "mongoose": "^8.8.1",
+    "multer": "^1.4.5-lts.1",
+    "net": "^1.0.2",
     "next": "15.0.3",
+    "next-connect": "^1.0.0",
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0-rc2",
     "react": "19.0.0-rc-66855b96-20241106",

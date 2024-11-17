@@ -1,28 +1,76 @@
-import nextConnect from 'next-connect';
-import multer from 'multer';
+import { NextResponse } from 'next/server';
 import connectMongo from '@/lib/mongodb';
+import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-});
+async function parseMultipartForm(request) {
+  const formData = await request.formData();
+  const file = formData.get('file') || formData.get('audio');
+  const fileType = formData.get('fileType');
 
-const handler = nextConnect();
+  if (!file) {
+    throw new Error('No file uploaded');
+  }
 
-handler.use(upload.single('file')).post(async (req, res) => {
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  return {
+    filename: file.name,
+    buffer: buffer,
+    mimetype: file.type,
+    size: file.size,
+    fileType
+  };
+}
+
+export async function POST(request) {
   try {
+    const fileData = await parseMultipartForm(request);
     await connectMongo();
-    const db = (await connectMongo()).db();
-    const bucket = new GridFSBucket(db, { bucketName: 'files' });
+    const db = mongoose.connection.db;
 
-    const uploadStream = bucket.openUploadStream(req.file.originalname);
-    uploadStream.end(req.file.buffer);
+    const bucketName = fileData.fileType === 'audio' ? 'audio.files' : 'general.files';
+    const bucket = new GridFSBucket(db, { bucketName });
 
-    res.status(200).json({ success: true, message: 'File uploaded successfully' });
+    const uploadStream = bucket.openUploadStream(fileData.filename, {
+      contentType: fileData.mimetype,
+      metadata: {
+        fileType: fileData.fileType,
+        uploadDate: new Date(),
+        fileSize: fileData.size
+      }
+    });
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      uploadStream.on('finish', () => {
+        resolve(uploadStream.id);
+      });
+
+      uploadStream.on('error', (error) => {
+        reject(error);
+      });
+    });
+
+    uploadStream.write(fileData.buffer);
+    uploadStream.end();
+
+    const fileId = await uploadPromise;
+
+    return NextResponse.json({
+      success: true,
+      message: `${fileData.fileType === 'audio' ? 'Audio' : 'File'} uploaded successfully`,
+      fileId: fileId.toString(),
+      fileName: fileData.filename,
+      size: fileData.size,
+      type: fileData.mimetype,
+      fileType: fileData.fileType
+    }, { status: 200 });
+
   } catch (error) {
     console.error('Error uploading file:', error);
-    res.status(500).json({ success: false, error: 'Failed to upload file' });
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Failed to upload file. Please try again later.',
+    }, { status: 500 });
   }
-});
-
-export default handler;
+}
