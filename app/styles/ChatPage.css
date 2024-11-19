@@ -270,3 +270,40 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #6272a4;
 }
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.bookmark-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+  font-size: 18px;
+}
+
+.bookmark-button.active {
+  opacity: 1;
+}
+
+.bookmark-button:hover {
+  transform: scale(1.1);
+}
+
+.save-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.save-toggle.active {
+  opacity: 1;
+}
