@@ -26,7 +26,6 @@ async function parseMultipartForm(request) {
 export async function POST(request) {
   try {
     const fileData = await parseMultipartForm(request);
-    mongoose.set('maxPoolSize', 10);
     await connectMongo();
     const db = mongoose.connection.db;
 

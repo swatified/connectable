@@ -44,10 +44,47 @@
 .chat-header {
   padding: 20px;
   background-color: #282a36;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 1.5rem;
   font-weight: bold;
   border-bottom: 2px solid #44475a;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.clear-button {
+  background: none;
+  border: none;
+  color: #ff5555;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 5px;
+}
+
+.clear-button:hover {
+  color: #ff3333;
+  transform: scale(1.1);
+}
+
+.logout-button {
+  padding: 8px 16px;
+  background-color: #44475a;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.logout-button:hover {
+  background-color: #6272a4;
 }
 
 .chat-body {
@@ -94,6 +131,12 @@
   border-radius: 5px;
   border: none;
   flex: 1;
+  background-color: #44475a;
+  color: #f8f8f2;
+}
+
+.message-input::placeholder {
+  color: #bd93f9;
 }
 
 .spoiler {
@@ -105,7 +148,6 @@
 .spoiler:hover {
   color: white;
 }
-
 
 .send-button {
   background-color: #50fa7b;
@@ -150,63 +192,14 @@
   font-size: 1.5rem;
   cursor: pointer;
   transition: 0.3s;
+  color: #f8f8f2;
 }
 
 .icon:hover {
   color: #50fa7b;
 }
 
-.file-info {
-  display: inline-block;
-  margin: 8px 0;
-  padding: 8px;
-  background-color: #f0f0f0;
-  border-radius: 8px;
-  font-size: 0.9em;
-}
-
-.file-info.audio {
-  display: block;
-}
-
-.file-info.audio audio {
-  max-width: 300px;
-}
-
-.file-info a {
-  color: #0066cc;
-  text-decoration: none;
-}
-
-.file-info a:hover {
-  text-decoration: underline;
-}
-
-.recording-timer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.recording-timer span {
-  color: #ff0000;
-}
-
-.stop-button {
-  padding: 4px 8px;
-  background-color: #ff0000;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.stop-button:hover {
-  background-color: #cc0000;
-}
-
-/* Add these styles to your ChatPage.css */
-
+/* Media Messages */
 .media-message {
   margin: 8px 0;
   max-width: 400px;
@@ -237,29 +230,43 @@
 
 .file-message {
   margin: 8px 0;
+  background-color: #44475a;
+  padding: 10px;
+  border-radius: 5px;
 }
 
 .file-link {
   display: inline-block;
   padding: 8px 12px;
-  background-color: #f0f0f0;
-  border-radius: 4px;
-  color: #0066cc;
+  color: #50fa7b;
   text-decoration: none;
-  transition: background-color 0.2s;
+  transition: color 0.2s;
 }
 
 .file-link:hover {
-  background-color: #e0e0e0;
+  color: #45e66e;
 }
 
-.file-info {
-  font-size: 0.9em;
-  color: #666;
-  margin-top: 4px;
+.timestamp {
+  font-size: 0.8rem;
+  color: #6272a4;
+  margin-left: 8px;
 }
 
-.media-message + .timestamp {
-  display: block;
-  margin-top: 4px;
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #282a36;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #44475a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6272a4;
 }
