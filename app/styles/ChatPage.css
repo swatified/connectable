@@ -205,6 +205,8 @@
   background-color: #cc0000;
 }
 
+/* Add these styles to your ChatPage.css */
+
 .media-message {
   margin: 8px 0;
   max-width: 400px;

@@ -4,6 +4,99 @@ import { useState, useEffect } from 'react';
 import Pusher from 'pusher-js';
 import './styles/ChatPage.css';
 
+// Separate component for file messages
+const FileMessage = ({ messageData }) => {
+  const [fileContent, setFileContent] = useState(null);
+
+  useEffect(() => {
+    const fetchFileData = async () => {
+      try {
+        const fileData = messageData.fileData || messageData;
+        const response = await fetch(`/api/files/${fileData.fileId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setFileContent(data);
+        }
+      } catch (error) {
+        console.error('Error fetching file:', error);
+      }
+    };
+
+    fetchFileData();
+  }, [messageData]);
+
+  if (!fileContent) {
+    return <div>Loading...</div>;
+  }
+
+  const dataUrl = `data:${fileContent.contentType};base64,${fileContent.data}`;
+
+  // Handle different file types
+  if (fileContent.contentType.startsWith('image/')) {
+    return (
+      <div className="media-message">
+        <img
+          src={dataUrl}
+          alt={fileContent.filename}
+          className="max-w-full h-auto rounded-lg shadow-md"
+          loading="lazy"
+        />
+        <div className="text-sm text-gray-500 mt-1">
+          📎 {fileContent.filename}
+        </div>
+      </div>
+    );
+  }
+
+  if (fileContent.contentType.startsWith('audio/')) {
+    return (
+      <div className="media-message">
+        <audio 
+          controls 
+          className="w-full rounded-lg shadow-sm"
+        >
+          <source src={dataUrl} type={fileContent.contentType} />
+          Your browser does not support audio playback.
+        </audio>
+        <div className="text-sm text-gray-500 mt-1">
+          🎵 {fileContent.filename}
+        </div>
+      </div>
+    );
+  }
+
+  if (fileContent.contentType.startsWith('video/')) {
+    return (
+      <div className="media-message">
+        <video 
+          controls 
+          className="w-full rounded-lg shadow-md"
+        >
+          <source src={dataUrl} type={fileContent.contentType} />
+          Your browser does not support video playback.
+        </video>
+        <div className="text-sm text-gray-500 mt-1">
+          🎥 {fileContent.filename}
+        </div>
+      </div>
+    );
+  }
+
+  // Default file link for other types
+  return (
+    <div className="file-message p-2 bg-gray-100 rounded-lg">
+      <a
+        href={dataUrl}
+        download={fileContent.filename}
+        className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
+      >
+        📎 {fileContent.filename}
+      </a>
+    </div>
+  );
+};
+
 export default function Home() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -13,6 +106,7 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState('00:00');
   const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [fileCache, setFileCache] = useState(new Map());
 
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
@@ -114,6 +208,28 @@ export default function Home() {
     return formatted;
   };
 
+  const fetchFileData = async (fileId) => {
+    try {
+      // Check cache first
+      if (fileCache.has(fileId)) {
+        return fileCache.get(fileId);
+      }
+
+      const response = await fetch(`/api/files/${fileId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Cache the result
+        setFileCache(prev => new Map(prev.set(fileId, data)));
+        return data;
+      }
+      throw new Error('Failed to fetch file');
+    } catch (error) {
+      console.error('Error fetching file:', error);
+      return null;
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -135,6 +251,7 @@ export default function Home() {
       if (data.success) {
         setInput('');
         
+        // Create a message with file type information
         const fileMessage = {
           type: 'file',
           filename: data.fileName,
@@ -162,6 +279,8 @@ export default function Home() {
 
     e.target.value = '';
   };
+
+
 
   const startRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -257,76 +376,32 @@ export default function Home() {
 
   const renderMessage = (msg) => {
     try {
-      if (msg.messageType === 'file') {
-        const fileData = JSON.parse(msg.content);
-        const fileUrl = `/api/files/${fileData.fileId}`;
-        
-        if (fileData.contentType.startsWith('image/')) {
-          return (
-            <div className="media-message">
-              <img 
-                src={fileUrl} 
-                alt={fileData.filename}
-                className="chat-image"
-                loading="lazy"
-              />
-              <div className="file-info">
-                📎 {fileData.filename} ({fileData.size} MB)
-              </div>
-            </div>
-          );
-        } else if (fileData.contentType.startsWith('audio/')) {
-          return (
-            <div className="media-message">
-              <audio controls className="chat-audio">
-                <source src={fileUrl} type={fileData.contentType} />
-                Your browser does not support the audio element.
-              </audio>
-              <div className="file-info">
-                🎵 {fileData.filename} ({fileData.size} MB)
-              </div>
-            </div>
-          );
-        } else if (fileData.contentType.startsWith('video/')) {
-          return (
-            <div className="media-message">
-              <video controls className="chat-video">
-                <source src={fileUrl} type={fileData.contentType} />
-                Your browser does not support the video element.
-              </video>
-              <div className="file-info">
-                🎥 {fileData.filename} ({fileData.size} MB)
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div className="file-message">
-              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="file-link">
-                📎 {fileData.filename} ({fileData.size} MB)
-              </a>
-            </div>
-          );
+      // Parse message content if it's a string
+      let messageData = msg.content;
+      if (typeof msg.content === 'string') {
+        try {
+          messageData = JSON.parse(msg.content);
+        } catch (e) {
+          // If parsing fails, it's a regular text message
+          return <span dangerouslySetInnerHTML={{ __html: msg.content }}></span>;
         }
       }
 
-      return (
-        <span dangerouslySetInnerHTML={{ __html: msg.content }}></span>
-      );
+      // Handle file messages
+      if (messageData.type === 'file' || messageData.messageType === 'file') {
+        return <FileMessage messageData={messageData} />;
+      }
+
+      // Regular text messages
+      return <span dangerouslySetInnerHTML={{ __html: msg.content }}></span>;
     } catch (error) {
       console.error('Error rendering message:', error);
-      return <span>{msg.content}</span>;
+      return <span>{msg.content || 'Error displaying message'}</span>;
     }
   };
-
+  
   return (
     <div className="chat-container">
-      <header className="chat-header">
-        <h1>Chat Room</h1>
-        <button className="logout-button" onClick={() => setAuthenticated(false)}>
-          Logout
-        </button>
-      </header>
       <main className="chat-body">
         <div className="chat-messages">
           {messages.map((msg, idx) => (
