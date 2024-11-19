@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Pusher from 'pusher-js';
 import './styles/ChatPage.css';
 
-// Separate component for file messages
 const FileMessage = ({ messageData }) => {
   const [fileContent, setFileContent] = useState(null);
 
@@ -32,7 +31,6 @@ const FileMessage = ({ messageData }) => {
 
   const dataUrl = `data:${fileContent.contentType};base64,${fileContent.data}`;
 
-  // Handle different file types
   if (fileContent.contentType.startsWith('image/')) {
     return (
       <div className="media-message">
@@ -83,7 +81,6 @@ const FileMessage = ({ messageData }) => {
     );
   }
 
-  // Default file link for other types
   return (
     <div className="file-message p-2 bg-gray-100 rounded-lg">
       <a
@@ -106,7 +103,6 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState('00:00');
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [fileCache, setFileCache] = useState(new Map());
 
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
@@ -140,6 +136,13 @@ export default function Home() {
     }
   };
 
+  const logout = () => {
+    localStorage.removeItem('username');
+    setAuthenticated(false);
+    setUsername('');
+    setMessages([]);
+  };
+  
   const fetchMessages = async () => {
     try {
       const res = await fetch('/api/getMessages');
@@ -208,28 +211,6 @@ export default function Home() {
     return formatted;
   };
 
-  const fetchFileData = async (fileId) => {
-    try {
-      // Check cache first
-      if (fileCache.has(fileId)) {
-        return fileCache.get(fileId);
-      }
-
-      const response = await fetch(`/api/files/${fileId}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        // Cache the result
-        setFileCache(prev => new Map(prev.set(fileId, data)));
-        return data;
-      }
-      throw new Error('Failed to fetch file');
-    } catch (error) {
-      console.error('Error fetching file:', error);
-      return null;
-    }
-  };
-
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -251,7 +232,6 @@ export default function Home() {
       if (data.success) {
         setInput('');
         
-        // Create a message with file type information
         const fileMessage = {
           type: 'file',
           filename: data.fileName,
@@ -279,8 +259,6 @@ export default function Home() {
 
     e.target.value = '';
   };
-
-
 
   const startRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -376,23 +354,19 @@ export default function Home() {
 
   const renderMessage = (msg) => {
     try {
-      // Parse message content if it's a string
       let messageData = msg.content;
       if (typeof msg.content === 'string') {
         try {
           messageData = JSON.parse(msg.content);
         } catch (e) {
-          // If parsing fails, it's a regular text message
           return <span dangerouslySetInnerHTML={{ __html: msg.content }}></span>;
         }
       }
 
-      // Handle file messages
       if (messageData.type === 'file' || messageData.messageType === 'file') {
         return <FileMessage messageData={messageData} />;
       }
 
-      // Regular text messages
       return <span dangerouslySetInnerHTML={{ __html: msg.content }}></span>;
     } catch (error) {
       console.error('Error rendering message:', error);
@@ -400,8 +374,35 @@ export default function Home() {
     }
   };
   
+  if (!authenticated) {
+    return (
+      <div className="auth-container">
+        <h1>Login</h1>
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button onClick={login}>Login</button>
+      </div>
+    );
+  }
+
   return (
     <div className="chat-container">
+      <header className="chat-header">
+        <h1>Chat Room</h1>
+        <button className="logout-button" onClick={logout}>
+          Logout
+        </button>
+      </header>
       <main className="chat-body">
         <div className="chat-messages">
           {messages.map((msg, idx) => (
