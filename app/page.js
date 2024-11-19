@@ -99,17 +99,43 @@ export default function Home() {
   const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [savedMessages, setSavedMessages] = useState([]);
+  const [showSaved, setShowSaved] = useState(false);
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState('00:00');
   const [mediaRecorder, setMediaRecorder] = useState(null);
+
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch('/api/getMessages');
+      const data = await res.json();
+      if (data.success) {
+        setMessages(data.messages);
+      }
+    } catch (error) {
+      console.error('Failed to fetch messages:', error.message);
+    }
+  };
+
+  const fetchSavedMessages = async () => {
+    try {
+      const res = await fetch('/api/getSavedMessages');
+      const data = await res.json();
+      if (data.success) {
+        setSavedMessages(data.messages);
+      }
+    } catch (error) {
+      console.error('Failed to fetch saved messages:', error);
+    }
+  };
 
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
     if (storedUsername) {
       setUsername(storedUsername);
       setAuthenticated(true);
-      fetchMessages();
+      Promise.all([fetchMessages(), fetchSavedMessages()]);
       setupPusher();
     }
   }, []);
@@ -126,7 +152,7 @@ export default function Home() {
       if (data.success) {
         localStorage.setItem('username', username);
         setAuthenticated(true);
-        fetchMessages();
+        Promise.all([fetchMessages(), fetchSavedMessages()]);
         setupPusher();
       } else {
         alert('Invalid username or password');
@@ -136,48 +162,12 @@ export default function Home() {
     }
   };
 
-  const clearDatabase = async () => {
-    if (window.confirm('Are you sure? This will delete all messages permanently.')) {
-      try {
-        const res = await fetch('/api/clearMessages', {
-          method: 'DELETE'
-        });
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
-        const data = await res.json();
-        if (data.success) {
-          setMessages([]);
-          console.log('Database cleared successfully');
-        } else {
-          throw new Error(data.error || 'Failed to clear database');
-        }
-      } catch (error) {
-        console.error('Failed to clear database:', error);
-        alert('Failed to clear messages. Please try again.');
-      }
-    }
-  };
-
   const logout = () => {
     localStorage.removeItem('username');
     setAuthenticated(false);
     setUsername('');
     setMessages([]);
-  };
-  
-  const fetchMessages = async () => {
-    try {
-      const res = await fetch('/api/getMessages');
-      const data = await res.json();
-      if (data.success) {
-        setMessages(data.messages);
-      }
-    } catch (error) {
-      console.error('Failed to fetch messages:', error.message);
-    }
+    setSavedMessages([]);
   };
 
   const setupPusher = () => {
@@ -377,7 +367,64 @@ export default function Home() {
     }
   };
 
-  const renderMessage = (msg) => {
+  const toggleSaveMessage = async (msg) => {
+    try {
+      const isAlreadySaved = savedMessages.some(m => m.originalMessageId === msg._id);
+      
+      if (isAlreadySaved) {
+        const res = await fetch(`/api/saveMessage/${msg._id}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          setSavedMessages(prev => prev.filter(m => m.originalMessageId !== msg._id));
+        }
+      } else {
+        const res = await fetch('/api/saveMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            originalMessageId: msg._id,
+            username: msg.username,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            fileInfo: msg.fileInfo,
+            fileId: msg.fileId,
+            messageType: msg.messageType
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setSavedMessages(prev => [...prev, data.savedMessage]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to toggle save message:', error);
+    }
+  };
+
+  const clearDatabase = async () => {
+    if (window.confirm('Clear all unsaved messages?')) {
+      try {
+        const res = await fetch('/api/clearMessages', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            savedMessageIds: savedMessages.map(m => m.originalMessageId) 
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setMessages([]);
+          setShowSaved(false); // Add this line to switch to main view
+        }
+      } catch (error) {
+        console.error('Failed to clear database:', error);
+      }
+    }
+  };
+
+  const renderMessageContent = (msg) => {
     try {
       let messageData = msg.content;
       if (typeof msg.content === 'string') {
@@ -397,6 +444,29 @@ export default function Home() {
       console.error('Error rendering message:', error);
       return <span>{msg.content || 'Error displaying message'}</span>;
     }
+  };
+
+  const renderMessage = (msg) => {
+    const isBookmarked = savedMessages.some(m => m.originalMessageId === msg._id);
+    
+    return (
+      <div className="message-content">
+        <div className="message-header">
+          <strong>{msg.username}: </strong>
+          <button 
+            className={`bookmark-button ${isBookmarked ? 'active' : ''}`}
+            onClick={() => toggleSaveMessage(msg)}
+            title={isBookmarked ? "Remove bookmark" : "Bookmark message"}
+          >
+            🗁
+          </button>
+        </div>
+        {renderMessageContent(msg)}
+        <span className="timestamp">
+          ({new Date(msg.timestamp).toLocaleTimeString()})
+        </span>
+      </div>
+    );
   };
 
   if (!authenticated) {
@@ -426,9 +496,16 @@ export default function Home() {
         <h1>Chat Room</h1>
         <div className="header-buttons">
           <button 
+            className={`save-toggle ${showSaved ? 'active' : ''}`}
+            onClick={() => setShowSaved(!showSaved)}
+            title={showSaved ? "Show all messages" : "Show saved messages"}
+          >
+            💾
+          </button>
+          <button 
             className="clear-button"
             onClick={clearDatabase}
-            title="Clear all messages"
+            title="Clear unsaved messages"
           >
             🗑️
           </button>
@@ -438,17 +515,16 @@ export default function Home() {
         </div>
       </header>
       <main className="chat-body">
-        <div className="chat-messages">
-          {messages.map((msg, idx) => (
-            <div key={idx} className="chat-message">
-              <strong>{msg.username}: </strong>
-              {renderMessage(msg)}
-              <span className="timestamp">
-                ({new Date(msg.timestamp).toLocaleTimeString()})
-              </span>
-            </div>
-          ))}
+      <div className="chat-messages">
+        {(showSaved ? savedMessages : messages.filter(msg => 
+        !savedMessages.some(saved => saved.originalMessageId === msg._id)
+      )).map((msg, idx) => (
+      <div key={idx} className="chat-message">
+        {renderMessage(msg)}
         </div>
+      ))}
+      </div>
+      
       </main>
       <footer className="chat-footer">
         <label htmlFor="file-upload" className="icon">
