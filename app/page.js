@@ -13,7 +13,7 @@ const FileMessage = ({ messageData }) => {
         const fileData = messageData.fileData || messageData;
         const response = await fetch(`/api/files/${fileData.fileId}`);
         const data = await response.json();
-        
+
         if (data.success) {
           setFileContent(data);
         }
@@ -50,8 +50,8 @@ const FileMessage = ({ messageData }) => {
   if (fileContent.contentType.startsWith('audio/')) {
     return (
       <div className="media-message">
-        <audio 
-          controls 
+        <audio
+          controls
           className="w-full rounded-lg shadow-sm"
         >
           <source src={dataUrl} type={fileContent.contentType} />
@@ -67,8 +67,8 @@ const FileMessage = ({ messageData }) => {
   if (fileContent.contentType.startsWith('video/')) {
     return (
       <div className="media-message">
-        <video 
-          controls 
+        <video
+          controls
           className="w-full rounded-lg shadow-md"
         >
           <source src={dataUrl} type={fileContent.contentType} />
@@ -135,32 +135,38 @@ export default function Home() {
     if (storedUsername) {
       setUsername(storedUsername);
       setAuthenticated(true);
-      Promise.all([fetchMessages(), fetchSavedMessages()]);
-      setupPusher();
+      fetchMessages();
+      fetchSavedMessages();
+      const cleanupPusher = setupPusher();
+
+      return () => {
+        if (cleanupPusher) cleanupPusher();
+      };
     }
   }, []);
 
-  const login = async () => {
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
+const login = async () => {
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
 
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem('username', username);
-        setAuthenticated(true);
-        Promise.all([fetchMessages(), fetchSavedMessages()]);
-        setupPusher();
-      } else {
-        alert('Invalid username or password');
-      }
-    } catch (error) {
-      console.error('Login failed:', error.message);
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('username', username);
+      setAuthenticated(true);
+      fetchMessages();
+      fetchSavedMessages();
+      setupPusher();
+    } else {
+      alert('Invalid username or password');
     }
-  };
+  } catch (error) {
+    console.error('Login failed:', error.message);
+  }
+};
 
   const logout = () => {
     localStorage.removeItem('username');
@@ -171,36 +177,70 @@ export default function Home() {
   };
 
   const setupPusher = () => {
+    console.log('Setting up Pusher with key:', process.env.NEXT_PUBLIC_PUSHER_KEY);
+    
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
       forceTLS: true,
     });
-
+  
     const channel = pusher.subscribe('chat-channel');
+    
+    console.log('Pusher channel subscribed');
+    
     channel.bind('message-event', (data) => {
-      setMessages((prevMessages) => [...prevMessages, data]);
+      console.log('Received Pusher message:', data);
+      
+      // Ensure the data is in the correct format for your messages state
+      const formattedMessage = {
+        _id: data._id || Date.now().toString(), // Add a unique identifier
+        username: data.username,
+        content: data.content,
+        timestamp: data.timestamp || new Date().toISOString(),
+      };
+  
+      // Use functional update to ensure you're adding to the latest state
+      setMessages((prevMessages) => {
+        // Check if the message already exists to prevent duplicates
+        const messageExists = prevMessages.some(msg => msg.content === formattedMessage.content && msg.username === formattedMessage.username);
+        
+        if (messageExists) {
+          console.log('Message already exists, skipping');
+          return prevMessages;
+        }
+  
+        console.log('Adding new message to state');
+        return [...prevMessages, formattedMessage];
+      });
     });
-
+  
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
     };
   };
-
+  
   const sendMessage = async () => {
     if (!input.trim()) return;
-
+  
     try {
       const formattedContent = formatMessage(input);
-
+  
       const res = await fetch('/api/sendMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, content: formattedContent }),
+        body: JSON.stringify({ 
+          username, 
+          content: formattedContent,
+          _id: Date.now().toString(), // Add a unique identifier
+          timestamp: new Date().toISOString()
+        }),
       });
-
+  
       const data = await res.json();
-      if (data.success) setInput('');
+      if (data.success) {
+        setInput('');
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -243,10 +283,10 @@ export default function Home() {
       });
 
       const data = await res.json();
-      
+
       if (data.success) {
         setInput('');
-        
+
         const fileMessage = {
           type: 'file',
           filename: data.fileName,
@@ -258,8 +298,8 @@ export default function Home() {
         await fetch('/api/sendMessage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            username, 
+          body: JSON.stringify({
+            username,
             content: JSON.stringify(fileMessage),
             messageType: 'file'
           }),
@@ -312,8 +352,8 @@ export default function Home() {
             await fetch('/api/sendMessage', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                username, 
+              body: JSON.stringify({
+                username,
                 content: '🎤 Sent a voice message',
                 fileInfo: {
                   id: data.fileId,
@@ -370,7 +410,7 @@ export default function Home() {
   const toggleSaveMessage = async (msg) => {
     try {
       const isAlreadySaved = savedMessages.some(m => m.originalMessageId === msg._id);
-      
+
       if (isAlreadySaved) {
         const res = await fetch(`/api/saveMessage/${msg._id}`, {
           method: 'DELETE'
@@ -409,8 +449,8 @@ export default function Home() {
         const res = await fetch('/api/clearMessages', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            savedMessageIds: savedMessages.map(m => m.originalMessageId) 
+          body: JSON.stringify({
+            savedMessageIds: savedMessages.map(m => m.originalMessageId)
           })
         });
         const data = await res.json();
@@ -448,12 +488,12 @@ export default function Home() {
 
   const renderMessage = (msg) => {
     const isBookmarked = savedMessages.some(m => m.originalMessageId === msg._id);
-    
+
     return (
       <div className="message-content">
         <div className="message-header">
           <strong>{msg.username}: </strong>
-          <button 
+          <button
             className={`bookmark-button ${isBookmarked ? 'active' : ''}`}
             onClick={() => toggleSaveMessage(msg)}
             title={isBookmarked ? "Remove bookmark" : "Bookmark message"}
@@ -495,14 +535,14 @@ export default function Home() {
       <header className="chat-header">
         <h1>Chat Room</h1>
         <div className="header-buttons">
-          <button 
+          <button
             className={`save-toggle ${showSaved ? 'active' : ''}`}
             onClick={() => setShowSaved(!showSaved)}
             title={showSaved ? "Show all messages" : "Show saved messages"}
           >
             💾
           </button>
-          <button 
+          <button
             className="clear-button"
             onClick={clearDatabase}
             title="Clear unsaved messages"
@@ -516,7 +556,7 @@ export default function Home() {
       </header>
       <main className="chat-body">
       <div className="chat-messages">
-        {(showSaved ? savedMessages : messages.filter(msg => 
+        {(showSaved ? savedMessages : messages.filter(msg =>
         !savedMessages.some(saved => saved.originalMessageId === msg._id)
       )).map((msg, idx) => (
       <div key={idx} className="chat-message">
@@ -524,7 +564,7 @@ export default function Home() {
         </div>
       ))}
       </div>
-      
+
       </main>
       <footer className="chat-footer">
         <label htmlFor="file-upload" className="icon">
