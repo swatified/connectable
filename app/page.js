@@ -136,6 +136,31 @@ export default function Home() {
     }
   };
 
+  const clearDatabase = async () => {
+    if (window.confirm('Are you sure? This will delete all messages permanently.')) {
+      try {
+        const res = await fetch('/api/clearMessages', {
+          method: 'DELETE'
+        });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        if (data.success) {
+          setMessages([]);
+          console.log('Database cleared successfully');
+        } else {
+          throw new Error(data.error || 'Failed to clear database');
+        }
+      } catch (error) {
+        console.error('Failed to clear database:', error);
+        alert('Failed to clear messages. Please try again.');
+      }
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('username');
     setAuthenticated(false);
@@ -203,11 +228,11 @@ export default function Home() {
 
   const formatMessage = (message) => {
     let formatted = message;
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>'); // Italics
-    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>'); // Strikethrough
-    formatted = formatted.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler">$1</span>'); // Spoiler
-    formatted = formatted.replace(/\n/g, '<br>'); // Newline to <br>
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
+    formatted = formatted.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler">$1</span>');
+    formatted = formatted.replace(/\n/g, '<br>');
     return formatted;
   };
 
@@ -373,7 +398,7 @@ export default function Home() {
       return <span>{msg.content || 'Error displaying message'}</span>;
     }
   };
-  
+
   if (!authenticated) {
     return (
       <div className="auth-container">
@@ -399,9 +424,18 @@ export default function Home() {
     <div className="chat-container">
       <header className="chat-header">
         <h1>Chat Room</h1>
-        <button className="logout-button" onClick={logout}>
-          Logout
-        </button>
+        <div className="header-buttons">
+          <button 
+            className="clear-button"
+            onClick={clearDatabase}
+            title="Clear all messages"
+          >
+            🗑️
+          </button>
+          <button className="logout-button" onClick={logout}>
+            Logout
+          </button>
+        </div>
       </header>
       <main className="chat-body">
         <div className="chat-messages">
