@@ -105,19 +105,21 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState('00:00');
   const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [windowFocused, setWindowFocused] = useState(true);
+  const notificationSound = useRef(null);
 
-  // 4. Add the ref here
   const messagesEndRef = useRef(null);
 
-  // 5. Add the scroll function here
+  // Add the scroll function here
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
-  // 6. Add the useEffect here
   useEffect(() => {
     scrollToBottom();
   }, [messages, savedMessages, showSaved]);
+
 
   const fetchMessages = async () => {
     try {
@@ -158,6 +160,59 @@ export default function Home() {
     }
   }, []);
 
+  // Add this new useEffect after your existing ones
+  useEffect(() => {
+    // Initialize audio only on client side
+    notificationSound.current = new Audio('/notification.mp3');
+  }, []);
+  
+  // Update your window focus effect
+  useEffect(() => {
+    const handleFocus = () => {
+      setWindowFocused(true);
+      setUnreadCount(0);
+      document.title = 'Chat Room';
+    };
+  
+    const handleBlur = () => {
+      setWindowFocused(false);
+    };
+  
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+  
+    setWindowFocused(document.hasFocus());
+  
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setWindowFocused(false);
+      } else {
+        setWindowFocused(true);
+        setUnreadCount(0);
+        document.title = 'Chat Room';
+      }
+    };
+  
+    // Initial setup
+    if (typeof document !== 'undefined') {
+      setWindowFocused(!document.hidden);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+  
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, []);
+
 const login = async () => {
   try {
     const res = await fetch('/api/login', {
@@ -189,49 +244,64 @@ const login = async () => {
     setSavedMessages([]);
   };
 
-  const setupPusher = () => {
-    console.log('Setting up Pusher with key:', process.env.NEXT_PUBLIC_PUSHER_KEY);
-    
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-      forceTLS: true,
-    });
+  // Update the setupPusher function's notification logic
+const setupPusher = () => {
+  const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    forceTLS: true,
+  });
+
+  const channel = pusher.subscribe('chat-channel');
   
-    const channel = pusher.subscribe('chat-channel');
-    
-    console.log('Pusher channel subscribed');
-    
-    channel.bind('message-event', (data) => {
-      console.log('Received Pusher message:', data);
-      
-      // Ensure the data is in the correct format for your messages state
-      const formattedMessage = {
-        _id: data._id || Date.now().toString(), // Add a unique identifier
-        username: data.username,
-        content: data.content,
-        timestamp: data.timestamp || new Date().toISOString(),
-      };
-  
-      // Use functional update to ensure you're adding to the latest state
-      setMessages((prevMessages) => {
-        // Check if the message already exists to prevent duplicates
-        const messageExists = prevMessages.some(msg => msg.content === formattedMessage.content && msg.username === formattedMessage.username);
-        
-        if (messageExists) {
-          console.log('Message already exists, skipping');
-          return prevMessages;
-        }
-  
-        console.log('Adding new message to state');
-        return [...prevMessages, formattedMessage];
-      });
-    });
-  
-    return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
+  channel.bind('message-event', (data) => {
+    const formattedMessage = {
+      _id: data._id || Date.now().toString(),
+      username: data.username,
+      content: data.content,
+      timestamp: data.timestamp || new Date().toISOString(),
     };
+
+    // Only notify if message is from someone else and tab is not visible
+    if (data.username !== username && document.hidden) {
+      // Play notification sound
+      try {
+        notificationSound.current.volume = 0.5;
+        notificationSound.current.play().catch(err => 
+          console.error('Error playing sound:', err)
+        );
+      } catch (error) {
+        console.error('Sound playback error:', error);
+      }
+
+      // Update title with unread count
+      setUnreadCount(prev => {
+        const newCount = prev + 1;
+        document.title = `Chat Room (${newCount})`;
+        return newCount;
+      });
+    }
+
+    setMessages((prevMessages) => {
+      const messageExists = prevMessages.some(msg => 
+        msg.content === formattedMessage.content && 
+        msg.username === formattedMessage.username
+      );
+      
+      if (messageExists) {
+        return prevMessages;
+      }
+
+      return [...prevMessages, formattedMessage];
+    });
+
+    scrollToBottom();
+  });
+
+  return () => {
+    channel.unbind_all();
+    channel.unsubscribe();
   };
+};
   
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -546,7 +616,7 @@ const login = async () => {
   return (
     <div className="chat-container">
       <header className="chat-header">
-        <h1>Chat Room</h1>
+      <h1>Chat Room</h1>
         <div className="header-buttons">
           <button
             className={`save-toggle ${showSaved ? 'active' : ''}`}
