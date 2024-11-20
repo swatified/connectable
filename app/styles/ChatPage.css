@@ -351,3 +351,50 @@
   transition: width 0.2s ease-in-out;
 }
 
+.notification-bell {
+  padding: 8px;
+  font-size: 1.2em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.notification-bell:not(:disabled):hover {
+  transform: scale(1.1);
+}
+
+.notification-bell:disabled {
+  cursor: not-allowed;
+}
+
+@keyframes ring {
+  0% { transform: rotate(0); }
+  10% { transform: rotate(30deg); }
+  20% { transform: rotate(-28deg); }
+  30% { transform: rotate(34deg); }
+  40% { transform: rotate(-32deg); }
+  50% { transform: rotate(30deg); }
+  60% { transform: rotate(-28deg); }
+  70% { transform: rotate(34deg); }
+  80% { transform: rotate(-32deg); }
+  90% { transform: rotate(30deg); }
+  100% { transform: rotate(0); }
+}
+
+.notification-bell:not(.cooldown):active span {
+  animation: ring 0.8s ease;
+  display: inline-block;
+}
+
+/* Optional: Add cooldown timer display */
+.notification-bell.cooldown::after {
+  content: attr(data-cooldown);
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7em;
+  color: #808080;
+}

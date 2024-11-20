@@ -19,7 +19,8 @@
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0-rc2",
     "react": "19.0.0-rc-66855b96-20241106",
-    "react-dom": "19.0.0-rc-66855b96-20241106"
+    "react-dom": "19.0.0-rc-66855b96-20241106",
+    "twilio": "^5.3.6"
   },
   "devDependencies": {
     "eslint": "^8",

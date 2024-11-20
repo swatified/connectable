@@ -9,7 +9,7 @@ const FileMessage = ({ messageData }) => {
 
   const getFileIcon = (contentType) => {
     if (contentType.startsWith('image/')) return '🖼️';
-    if (contentType.startsWith('video/')) return '🎥';
+    if (contentType.startsWith('video/')) return '🎬';
     if (contentType.startsWith('audio/')) return '🎵';
     if (contentType.includes('pdf')) return '📄';
     if (contentType.includes('word') || contentType.includes('document')) return '📝';
@@ -120,8 +120,50 @@ export default function Home() {
   const notificationSound = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [notificationCooldown, setNotificationCooldown] = useState(false);
+  const [lastNotificationTime, setLastNotificationTime] = useState(null);
 
   const messagesEndRef = useRef(null);
+
+  // Add this function to handle notification
+const handleNotification = async () => {
+  // Check cooldown
+  if (notificationCooldown) {
+    const remainingTime = Math.ceil((300000 - (Date.now() - lastNotificationTime)) / 60000);
+    alert(`Please wait ${remainingTime} minutes before sending another notification`);
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/sendNotification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromUser: username,
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      // Set cooldown
+      setNotificationCooldown(true);
+      setLastNotificationTime(Date.now());
+      
+      // Show success message
+      alert(`Notification sent to ${username === 'user1' ? 'user2' : 'user1'}!`);
+      
+      // Reset cooldown after 5 minutes
+      setTimeout(() => {
+        setNotificationCooldown(false);
+      }, 300000); // 5 minutes
+    } else {
+      alert('Failed to send notification: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    alert('Error sending notification');
+  }
+};
 
   // Add the scroll function here
 
@@ -366,12 +408,7 @@ const handleDrop = async (e) => {
   e.stopPropagation();
   setIsDragging(false);
 
-  const files = Array.from(e.dataTransfer.files).filter(file => 
-    file.type.startsWith('image/') || 
-    file.type.startsWith('video/') || 
-    file.type === 'image/gif'
-  );
-
+  const files = Array.from(e.dataTransfer.files);
   if (files.length === 0) return;
 
   const file = files[0];
@@ -382,6 +419,7 @@ const handleDrop = async (e) => {
   formData.append('file', file);
 
   try {
+    setUploadProgress(0);
     const res = await fetch('/api/uploadFile', {
       method: 'POST',
       body: formData
@@ -391,6 +429,8 @@ const handleDrop = async (e) => {
 
     if (data.success) {
       setInput('');
+      setUploadProgress(null);
+      
       const fileMessage = {
         type: 'file',
         filename: data.fileName,
@@ -410,10 +450,12 @@ const handleDrop = async (e) => {
       });
     } else {
       setInput(`Failed to upload ${file.name}: ${data.error}`);
+      setUploadProgress(null);
     }
   } catch (err) {
     console.error('Upload error:', err.message);
     setInput(`Error uploading ${file.name}: ${err.message}`);
+    setUploadProgress(null);
   }
 };
 
@@ -809,6 +851,16 @@ const setupPusher = () => {
       <header className="chat-header">
       <h1>Chat Room</h1>
         <div className="header-buttons">
+        <button
+    className={`notification-bell ${notificationCooldown ? 'cooldown' : ''}`}
+    onClick={handleNotification}
+    disabled={notificationCooldown}
+    title={notificationCooldown ? "Notification on cooldown" : "Send notification"}
+  >
+    <span style={{ color: notificationCooldown ? '#808080' : '#FFD700' }}>
+      {notificationCooldown ? '🔔' : '🔔'}
+    </span>
+  </button>
           <button
             className={`save-toggle ${showSaved ? 'active' : ''}`}
             onClick={() => setShowSaved(!showSaved)}
