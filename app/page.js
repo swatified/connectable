@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Pusher from 'pusher-js';
 import './styles/ChatPage.css';
 
@@ -105,6 +105,19 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState('00:00');
   const [mediaRecorder, setMediaRecorder] = useState(null);
+
+  // 4. Add the ref here
+  const messagesEndRef = useRef(null);
+
+  // 5. Add the scroll function here
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // 6. Add the useEffect here
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, savedMessages, showSaved]);
 
   const fetchMessages = async () => {
     try {
@@ -555,17 +568,18 @@ const login = async () => {
         </div>
       </header>
       <main className="chat-body">
-      <div className="chat-messages">
-        {(showSaved ? savedMessages : messages.filter(msg =>
-        !savedMessages.some(saved => saved.originalMessageId === msg._id)
-      )).map((msg, idx) => (
-      <div key={idx} className="chat-message">
-        {renderMessage(msg)}
+        <div className="chat-messages">
+          {(showSaved ? savedMessages : messages.filter(msg =>
+            !savedMessages.some(saved => saved.originalMessageId === msg._id)
+          )).map((msg, idx) => (
+            <div key={idx} className="chat-message">
+              {renderMessage(msg)}
+            </div>
+          ))}
+          <div ref={messagesEndRef} /> {/* This is where we add the scroll ref */}
         </div>
-      ))}
-      </div>
-
       </main>
+
       <footer className="chat-footer">
         <label htmlFor="file-upload" className="icon">
           📎
