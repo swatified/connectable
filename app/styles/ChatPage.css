@@ -307,3 +307,47 @@
 .save-toggle.active {
   opacity: 1;
 }
+
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drag-overlay-content {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1e1e2f;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.drag-overlay-content i {
+  font-size: 2em;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.upload-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #e0e0e0;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: #2196f3;
+  transition: width 0.2s ease-in-out;
+}
+

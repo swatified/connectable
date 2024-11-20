@@ -7,6 +7,16 @@ import './styles/ChatPage.css';
 const FileMessage = ({ messageData }) => {
   const [fileContent, setFileContent] = useState(null);
 
+  const getFileIcon = (contentType) => {
+    if (contentType.startsWith('image/')) return '🖼️';
+    if (contentType.startsWith('video/')) return '🎥';
+    if (contentType.startsWith('audio/')) return '🎵';
+    if (contentType.includes('pdf')) return '📄';
+    if (contentType.includes('word') || contentType.includes('document')) return '📝';
+    if (contentType.includes('excel') || contentType.includes('spreadsheet')) return '📊';
+    return '📎';
+  };
+  
   useEffect(() => {
     const fetchFileData = async () => {
       try {
@@ -41,7 +51,7 @@ const FileMessage = ({ messageData }) => {
           loading="lazy"
         />
         <div className="text-sm text-gray-500 mt-1">
-          📎 {fileContent.filename}
+          {getFileIcon(fileContent.contentType)} {fileContent.filename}
         </div>
       </div>
     );
@@ -58,7 +68,7 @@ const FileMessage = ({ messageData }) => {
           Your browser does not support audio playback.
         </audio>
         <div className="text-sm text-gray-500 mt-1">
-          🎵 {fileContent.filename}
+          {getFileIcon(fileContent.contentType)} {fileContent.filename}
         </div>
       </div>
     );
@@ -75,7 +85,7 @@ const FileMessage = ({ messageData }) => {
           Your browser does not support video playback.
         </video>
         <div className="text-sm text-gray-500 mt-1">
-          🎥 {fileContent.filename}
+          {getFileIcon(fileContent.contentType)} {fileContent.filename}
         </div>
       </div>
     );
@@ -86,9 +96,9 @@ const FileMessage = ({ messageData }) => {
       <a
         href={dataUrl}
         download={fileContent.filename}
-        className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
+        className="flex items-center gap-2 text-blue-500 hover:text-blue-800"
       >
-        📎 {fileContent.filename}
+        {getFileIcon(fileContent.contentType)} {fileContent.filename}
       </a>
     </div>
   );
@@ -108,6 +118,8 @@ export default function Home() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [windowFocused, setWindowFocused] = useState(true);
   const notificationSound = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   const messagesEndRef = useRef(null);
 
@@ -243,6 +255,167 @@ const login = async () => {
     setMessages([]);
     setSavedMessages([]);
   };
+
+  // Add these new functions after your existing handlers
+  const handlePaste = async (e) => {
+    // First check for files in clipboard (like from File Explorer)
+    if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      const file = e.clipboardData.files[0];
+      await handleFileUploadFromClipboard(file);
+      return;
+    }
+  
+    // Then check for images and media
+    const clipboardItems = e.clipboardData.items;
+    const items = [...clipboardItems].filter(item => {
+      return item.type.indexOf('image/') !== -1 ||
+             item.type.indexOf('video/') !== -1 ||
+             item.type === 'image/gif';
+    });
+  
+    if (items.length === 0) return; // Allow normal paste if no supported files
+  
+    e.preventDefault();
+    const item = items[0];
+    const blob = item.getAsFile();
+    
+    if (!blob) return;
+  
+    await handleFileUploadFromClipboard(blob);
+  };
+  
+  // Separate function to handle file uploads from clipboard
+  const handleFileUploadFromClipboard = async (file) => {
+    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+    setInput(`Uploading: ${file.name || 'clipboard content'} (${fileSize} MB)`);
+  
+    const formData = new FormData();
+    
+    // If it's a blob without name (like pasted image), create a name
+    if (!file.name) {
+      const extension = file.type.split('/')[1] || 'png';
+      const fileName = `clipboard-${Date.now()}.${extension}`;
+      file = new File([file], fileName, { type: file.type });
+    }
+    
+    formData.append('file', file);
+  
+    try {
+      setUploadProgress(0);
+      const res = await fetch('/api/uploadFile', {
+        method: 'POST',
+        body: formData
+      });
+  
+      const data = await res.json();
+  
+      if (data.success) {
+        setInput('');
+        setUploadProgress(null);
+  
+        const fileMessage = {
+          type: 'file',
+          filename: data.fileName,
+          fileId: data.fileId,
+          contentType: data.type,
+          size: fileSize
+        };
+  
+        await fetch('/api/sendMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username,
+            content: JSON.stringify(fileMessage),
+            messageType: 'file'
+          }),
+        });
+      } else {
+        setInput(`Failed to upload ${file.name || 'clipboard content'}: ${data.error}`);
+        setUploadProgress(null);
+      }
+    } catch (err) {
+      console.error('Upload error:', err.message);
+      setInput(`Error uploading ${file.name || 'clipboard content'}: ${err.message}`);
+      setUploadProgress(null);
+    }
+  };
+
+const handleDragEnter = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsDragging(true);
+};
+
+const handleDragLeave = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    setIsDragging(false);
+  }
+};
+
+const handleDragOver = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+};
+
+const handleDrop = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsDragging(false);
+
+  const files = Array.from(e.dataTransfer.files).filter(file => 
+    file.type.startsWith('image/') || 
+    file.type.startsWith('video/') || 
+    file.type === 'image/gif'
+  );
+
+  if (files.length === 0) return;
+
+  const file = files[0];
+  const fileSize = (file.size / 1024 / 1024).toFixed(2);
+  setInput(`Uploading: ${file.name} (${fileSize} MB)`);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/uploadFile', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setInput('');
+      const fileMessage = {
+        type: 'file',
+        filename: data.fileName,
+        fileId: data.fileId,
+        contentType: data.type,
+        size: fileSize
+      };
+
+      await fetch('/api/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          content: JSON.stringify(fileMessage),
+          messageType: 'file'
+        }),
+      });
+    } else {
+      setInput(`Failed to upload ${file.name}: ${data.error}`);
+    }
+  } catch (err) {
+    console.error('Upload error:', err.message);
+    setInput(`Error uploading ${file.name}: ${err.message}`);
+  }
+};
 
   // Update the setupPusher function's notification logic
 const setupPusher = () => {
@@ -527,22 +700,26 @@ const setupPusher = () => {
   };
 
   const clearDatabase = async () => {
-    if (window.confirm('Clear all unsaved messages?')) {
+    if (window.confirm('Are you sure? This will delete all messages permanently.')) {
       try {
         const res = await fetch('/api/clearMessages', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            savedMessageIds: savedMessages.map(m => m.originalMessageId)
-          })
+          method: 'DELETE'
         });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const data = await res.json();
         if (data.success) {
           setMessages([]);
-          setShowSaved(false); // Add this line to switch to main view
+          console.log('Database cleared successfully');
+        } else {
+          throw new Error(data.error || 'Failed to clear database');
         }
       } catch (error) {
         console.error('Failed to clear database:', error);
+        alert('Failed to clear messages. Please try again.');
       }
     }
   };
@@ -614,7 +791,21 @@ const setupPusher = () => {
   }
 
   return (
-    <div className="chat-container">
+    <div 
+    className="chat-container"
+    onDragEnter={handleDragEnter}
+    onDragOver={handleDragOver}
+    onDragLeave={handleDragLeave}
+    onDrop={handleDrop}
+  >
+    {isDragging && (
+      <div className="drag-overlay">
+        <div className="drag-overlay-content">
+          <i>📁</i>
+          <p>Drop media here to upload</p>
+        </div>
+      </div>
+    )}
       <header className="chat-header">
       <h1>Chat Room</h1>
         <div className="header-buttons">
@@ -651,6 +842,14 @@ const setupPusher = () => {
       </main>
 
       <footer className="chat-footer">
+      {uploadProgress !== null && (
+        <div className="upload-progress">
+          <div 
+            className="upload-progress-bar" 
+            style={{ width: `${uploadProgress}%` }}
+          />
+        </div>
+      )}
         <label htmlFor="file-upload" className="icon">
           📎
         </label>
@@ -662,11 +861,12 @@ const setupPusher = () => {
           accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
         />
         <textarea
-          className="message-input"
-          placeholder="Type a message"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+        className="message-input"
+        placeholder="Type a message"  // Updated placeholder
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}  // Add this line
         />
         {isRecording ? (
           <div className="recording-timer">
