@@ -9,14 +9,12 @@ export async function POST(request) {
 
     console.log('Triggering Pusher event:', { username, content });
 
-    // Save the message to the database
     const newMessage = await Message.create({
       username,
       content,
       timestamp: new Date(),
     });
 
-    // Trigger Pusher event
     await pusher.trigger('chat-channel', 'message-event', {
       username,
       content,

@@ -122,50 +122,41 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(null);
   const [notificationCooldown, setNotificationCooldown] = useState(false);
   const [lastNotificationTime, setLastNotificationTime] = useState(null);
-
   const messagesEndRef = useRef(null);
 
-  // Add this function to handle notification
-const handleNotification = async () => {
-  // Check cooldown
-  if (notificationCooldown) {
-    const remainingTime = Math.ceil((300000 - (Date.now() - lastNotificationTime)) / 60000);
-    alert(`Please wait ${remainingTime} minutes before sending another notification`);
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/sendNotification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fromUser: username,
-      })
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      // Set cooldown
-      setNotificationCooldown(true);
-      setLastNotificationTime(Date.now());
-      
-      // Show success message
-      alert(`Notification sent to ${username === 'user1' ? 'user2' : 'user1'}!`);
-      
-      // Reset cooldown after 5 minutes
-      setTimeout(() => {
-        setNotificationCooldown(false);
-      }, 300000); // 5 minutes
-    } else {
-      alert('Failed to send notification: ' + (data.error || 'Unknown error'));
+  const handleNotification = async () => {
+    if (notificationCooldown) {
+      const remainingTime = Math.ceil((300000 - (Date.now() - lastNotificationTime)) / 60000);
+      alert(`Please wait ${remainingTime} minutes before sending another notification`);
+      return;
     }
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    alert('Error sending notification');
-  }
-};
 
-  // Add the scroll function here
+    try {
+      const res = await fetch('/api/sendNotification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUser: username,
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setNotificationCooldown(true);
+        setLastNotificationTime(Date.now());
+        alert(`Notification sent to ${username === 'user1' ? 'user2' : 'user1'}!`);
+        
+        setTimeout(() => {
+          setNotificationCooldown(false);
+        }, 300000);
+      } else {
+        alert('Failed to send notification: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      alert('Error sending notification');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -173,7 +164,6 @@ const handleNotification = async () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, savedMessages, showSaved]);
-
 
   const fetchMessages = async () => {
     try {
@@ -214,13 +204,10 @@ const handleNotification = async () => {
     }
   }, []);
 
-  // Add this new useEffect after your existing ones
   useEffect(() => {
-    // Initialize audio only on client side
     notificationSound.current = new Audio('/notification.mp3');
   }, []);
   
-  // Update your window focus effect
   useEffect(() => {
     const handleFocus = () => {
       setWindowFocused(true);
@@ -254,7 +241,6 @@ const handleNotification = async () => {
       }
     };
   
-    // Initial setup
     if (typeof document !== 'undefined') {
       setWindowFocused(!document.hidden);
       document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -267,28 +253,28 @@ const handleNotification = async () => {
     };
   }, []);
 
-const login = async () => {
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
+  const login = async () => {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
 
-    const data = await res.json();
-    if (data.success) {
-      localStorage.setItem('username', username);
-      setAuthenticated(true);
-      fetchMessages();
-      fetchSavedMessages();
-      setupPusher();
-    } else {
-      alert('Invalid username or password');
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('username', username);
+        setAuthenticated(true);
+        fetchMessages();
+        fetchSavedMessages();
+        setupPusher();
+      } else {
+        alert('Invalid username or password');
+      }
+    } catch (error) {
+      console.error('Login failed:', error.message);
     }
-  } catch (error) {
-    console.error('Login failed:', error.message);
-  }
-};
+  };
 
   const logout = () => {
     localStorage.removeItem('username');
@@ -298,9 +284,7 @@ const login = async () => {
     setSavedMessages([]);
   };
 
-  // Add these new functions after your existing handlers
   const handlePaste = async (e) => {
-    // First check for files in clipboard (like from File Explorer)
     if (e.clipboardData.files && e.clipboardData.files.length > 0) {
       e.preventDefault();
       const file = e.clipboardData.files[0];
@@ -308,7 +292,6 @@ const login = async () => {
       return;
     }
   
-    // Then check for images and media
     const clipboardItems = e.clipboardData.items;
     const items = [...clipboardItems].filter(item => {
       return item.type.indexOf('image/') !== -1 ||
@@ -316,7 +299,7 @@ const login = async () => {
              item.type === 'image/gif';
     });
   
-    if (items.length === 0) return; // Allow normal paste if no supported files
+    if (items.length === 0) return;
   
     e.preventDefault();
     const item = items[0];
@@ -327,14 +310,12 @@ const login = async () => {
     await handleFileUploadFromClipboard(blob);
   };
   
-  // Separate function to handle file uploads from clipboard
   const handleFileUploadFromClipboard = async (file) => {
     const fileSize = (file.size / 1024 / 1024).toFixed(2);
     setInput(`Uploading: ${file.name || 'clipboard content'} (${fileSize} MB)`);
   
     const formData = new FormData();
     
-    // If it's a blob without name (like pasted image), create a name
     if (!file.name) {
       const extension = file.type.split('/')[1] || 'png';
       const fileName = `clipboard-${Date.now()}.${extension}`;
@@ -384,140 +365,136 @@ const login = async () => {
     }
   };
 
-const handleDragEnter = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(true);
-};
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
 
-const handleDragLeave = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  if (!e.currentTarget.contains(e.relatedTarget)) {
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
-  }
-};
 
-const handleDragOver = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-};
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
 
-const handleDrop = async (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(false);
+    const file = files[0];
+    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+    setInput(`Uploading: ${file.name} (${fileSize} MB)`);
 
-  const files = Array.from(e.dataTransfer.files);
-  if (files.length === 0) return;
+    const formData = new FormData();
+    formData.append('file', file);
 
-  const file = files[0];
-  const fileSize = (file.size / 1024 / 1024).toFixed(2);
-  setInput(`Uploading: ${file.name} (${fileSize} MB)`);
+    try {
+      setUploadProgress(0);
+      const res = await fetch('/api/uploadFile', {
+        method: 'POST',
+        body: formData
+      });
 
-  const formData = new FormData();
-  formData.append('file', file);
+      const data = await res.json();
 
-  try {
-    setUploadProgress(0);
-    const res = await fetch('/api/uploadFile', {
-      method: 'POST',
-      body: formData
+      if (data.success) {
+        setInput('');
+        setUploadProgress(null);
+        
+        const fileMessage = {
+          type: 'file',
+          filename: data.fileName,
+          fileId: data.fileId,
+          contentType: data.type,
+          size: fileSize
+        };
+
+        await fetch('/api/sendMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username,
+            content: JSON.stringify(fileMessage),
+            messageType: 'file'
+          }),
+        });
+      } else {
+        setInput(`Failed to upload ${file.name}: ${data.error}`);
+        setUploadProgress(null);
+      }
+    } catch (err) {
+      console.error('Upload error:', err.message);
+      setInput(`Error uploading ${file.name}: ${err.message}`);
+      setUploadProgress(null);
+    }
+  };
+
+  const setupPusher = () => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+      forceTLS: true,
     });
 
-    const data = await res.json();
-
-    if (data.success) {
-      setInput('');
-      setUploadProgress(null);
-      
-      const fileMessage = {
-        type: 'file',
-        filename: data.fileName,
-        fileId: data.fileId,
-        contentType: data.type,
-        size: fileSize
+    const channel = pusher.subscribe('chat-channel');
+    
+    channel.bind('message-event', (data) => {
+      const formattedMessage = {
+        _id: data._id || Date.now().toString(),
+        username: data.username,
+        content: data.content,
+        timestamp: data.timestamp || new Date().toISOString(),
       };
 
-      await fetch('/api/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          content: JSON.stringify(fileMessage),
-          messageType: 'file'
-        }),
-      });
-    } else {
-      setInput(`Failed to upload ${file.name}: ${data.error}`);
-      setUploadProgress(null);
-    }
-  } catch (err) {
-    console.error('Upload error:', err.message);
-    setInput(`Error uploading ${file.name}: ${err.message}`);
-    setUploadProgress(null);
-  }
-};
+      if (data.username !== username && document.hidden) {
+        try {
+          notificationSound.current.volume = 0.5;
+          notificationSound.current.play().catch(err => 
+            console.error('Error playing sound:', err)
+          );
+        } catch (error) {
+          console.error('Sound playback error:', error);
+        }
 
-  // Update the setupPusher function's notification logic
-const setupPusher = () => {
-  const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-    forceTLS: true,
-  });
+        setUnreadCount(prev => {
+          const newCount = prev + 1;
+          document.title = `Chat Room (${newCount})`;
+          return newCount;
+        });
+      }
 
-  const channel = pusher.subscribe('chat-channel');
-  
-  channel.bind('message-event', (data) => {
-    const formattedMessage = {
-      _id: data._id || Date.now().toString(),
-      username: data.username,
-      content: data.content,
-      timestamp: data.timestamp || new Date().toISOString(),
-    };
-
-    // Only notify if message is from someone else and tab is not visible
-    if (data.username !== username && document.hidden) {
-      // Play notification sound
-      try {
-        notificationSound.current.volume = 0.5;
-        notificationSound.current.play().catch(err => 
-          console.error('Error playing sound:', err)
+      setMessages((prevMessages) => {
+        const messageExists = prevMessages.some(msg => 
+          msg.content === formattedMessage.content && 
+          msg.username === formattedMessage.username
         );
-      } catch (error) {
-        console.error('Sound playback error:', error);
-      }
+        
+        if (messageExists) {
+          return prevMessages;
+        }
 
-      // Update title with unread count
-      setUnreadCount(prev => {
-        const newCount = prev + 1;
-        document.title = `Chat Room (${newCount})`;
-        return newCount;
+        return [...prevMessages, formattedMessage];
       });
-    }
 
-    setMessages((prevMessages) => {
-      const messageExists = prevMessages.some(msg => 
-        msg.content === formattedMessage.content && 
-        msg.username === formattedMessage.username
-      );
-      
-      if (messageExists) {
-        return prevMessages;
-      }
-
-      return [...prevMessages, formattedMessage];
+      scrollToBottom();
     });
 
-    scrollToBottom();
-  });
-
-  return () => {
-    channel.unbind_all();
-    channel.unsubscribe();
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
   };
-};
-  
+    
   const sendMessage = async () => {
     if (!input.trim()) return;
   
@@ -530,7 +507,7 @@ const setupPusher = () => {
         body: JSON.stringify({ 
           username, 
           content: formattedContent,
-          _id: Date.now().toString(), // Add a unique identifier
+          _id: Date.now().toString(),
           timestamp: new Date().toISOString()
         }),
       });
@@ -914,11 +891,11 @@ const setupPusher = () => {
         />
         <textarea
         className="message-input"
-        placeholder="Type a message"  // Updated placeholder
+        placeholder="Type a message"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        onPaste={handlePaste}  // Add this line
+        onPaste={handlePaste}
         />
         {isRecording ? (
           <div className="recording-timer">

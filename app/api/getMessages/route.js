@@ -3,9 +3,7 @@ import Message from '@/models/Message';
 
 export async function GET() {
   try {
-    await connectMongo(); // Connect to MongoDB
-
-    // Fetch all messages, sorted by timestamp
+    await connectMongo();
     const messages = await Message.find().sort({ timestamp: 1 });
 
     return new Response(JSON.stringify({ success: true, messages }), {
