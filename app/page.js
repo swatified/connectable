@@ -21,8 +21,10 @@ const FileMessage = ({ messageData }) => {
   useEffect(() => {
     const fetchFileData = async () => {
       try {
-        const fileData = messageData.fileData || messageData;
-        const response = await fetch(`/api/files/${fileData.fileId}`);
+        const fileData = messageData.fileId ? messageData : 
+                         (typeof messageData.content === 'string' ? JSON.parse(messageData.content) : messageData);
+        
+        const response = await fetch(`/api/files/${fileData.fileId || fileData.id}`);
         const data = await response.json();
 
         if (data.success) {
@@ -608,90 +610,100 @@ const handleEmojiSelect = (emojiOrFile) => {
       alert('Your browser does not support audio recording.');
       return;
     }
-
+  
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       const audioChunks = [];
       let seconds = 0;
-
+  
       recorder.ondataavailable = (e) => {
         audioChunks.push(e.data);
       };
-
+  
       recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-        const audioFile = new File([audioBlob], `voice-message-${Date.now()}.mp3`, {
-          type: 'audio/mp3'
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        
+        const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, {
+          type: 'audio/webm'
         });
-
+  
         const formData = new FormData();
         formData.append('audio', audioFile);
         formData.append('fileType', 'audio');
-
+        
         try {
           const res = await fetch('/api/uploadFile', {
             method: 'POST',
-            body: formData,
+            body: formData
           });
-
+  
           const data = await res.json();
+  
           if (data.success) {
             await fetch('/api/sendMessage', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 username,
-                content: '🎤 Sent a voice message',
-                fileInfo: {
-                  id: data.fileId,
-                  name: data.fileName,
-                  type: 'audio/mp3',
-                  fileType: 'audio',
+                content: JSON.stringify({
+                  type: 'file',
+                  filename: data.fileName,
+                  fileId: data.fileId,
+                  contentType: data.type,
+                  size: data.size,
                   duration: seconds
-                }
+                }),
+                messageType: 'file'
               }),
             });
+  
+            setIsRecording(false);
+            setRecordingTime('00:00');
           } else {
             alert('Failed to upload voice message');
+            setIsRecording(false);
+            setRecordingTime('00:00');
           }
         } catch (err) {
           console.error('Voice message upload error:', err.message);
+          alert('Error uploading voice message');
+          setIsRecording(false);
+          setRecordingTime('00:00');
+        } finally {
+          stream.getTracks().forEach(track => track.stop());
         }
       };
-
+  
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
-
+  
       const timer = setInterval(() => {
         seconds++;
         const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
         const secs = String(seconds % 60).padStart(2, '0');
         setRecordingTime(`${mins}:${secs}`);
       }, 1000);
-
+  
       setTimeout(() => {
         if (recorder.state === 'recording') {
           clearInterval(timer);
           recorder.stop();
-          setIsRecording(false);
-          setRecordingTime('00:00');
-          stream.getTracks().forEach(track => track.stop());
         }
       }, 30000);
+  
     } catch (err) {
       console.error('Error starting recording:', err);
       alert('Failed to start recording');
+      setIsRecording(false);
+      setRecordingTime('00:00');
     }
   };
-
+  
   const stopRecording = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
-      setIsRecording(false);
-      setRecordingTime('00:00');
-      mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
   };
 

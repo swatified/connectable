@@ -6,20 +6,21 @@ import { GridFSBucket } from 'mongodb';
 async function parseMultipartForm(request) {
   const formData = await request.formData();
   const file = formData.get('file') || formData.get('audio');
-  const fileType = formData.get('fileType');
+  const fileType = formData.get('fileType') || (file.type.startsWith('audio/') ? 'audio' : 'general');
+  const username = formData.get('username');
 
   if (!file) {
     throw new Error('No file uploaded');
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-
   return {
     filename: file.name,
     buffer: buffer,
     mimetype: file.type,
     size: file.size,
-    fileType
+    fileType,
+    username
   };
 }
 
@@ -37,7 +38,8 @@ export async function POST(request) {
       metadata: {
         fileType: fileData.fileType,
         uploadDate: new Date(),
-        fileSize: fileData.size
+        fileSize: fileData.size,
+        username: fileData.username
       }
     });
 
@@ -45,7 +47,6 @@ export async function POST(request) {
       uploadStream.on('finish', () => {
         resolve(uploadStream.id);
       });
-
       uploadStream.on('error', (error) => {
         reject(error);
       });
@@ -68,6 +69,7 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Error uploading file:', error);
+    
     return NextResponse.json({
       success: false,
       error: error.message || 'Failed to upload file. Please try again later.',
