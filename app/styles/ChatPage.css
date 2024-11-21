@@ -30,6 +30,10 @@
   background-color: #45e66e;
 }
 
+input {
+  colo: black;
+}
+
 .chat-container {
   display: flex;
   flex-direction: column;
@@ -390,4 +394,45 @@
   transform: translateX(-50%);
   font-size: 0.7em;
   color: #808080;
+}
+
+.chat-footer {
+  position: relative;
+}
+
+.EmojiPickerReact {
+  --epr-hover-bg-color: #f0f0f0;
+  --epr-focus-bg-color: #e8e8e8;
+  --epr-highlight-color: #007bff;
+  --epr-search-border-color: #e0e0e0;
+}
+
+.emoji-picker-container {
+  color: #1e1e2f;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  z-index: 1000;
+}
+
+/* Add to your ChatPage.css */
+.gif-loading {
+  @apply flex justify-center items-center h-32;
+}
+
+.gif-grid {
+  @apply grid grid-cols-2 gap-2;
+}
+
+.gif-item {
+  @apply relative overflow-hidden rounded-lg;
+}
+
+.gif-item img {
+  @apply w-full h-32 object-cover transition-all duration-200;
+}
+
+.gif-item:hover img {
+  @apply transform scale-105;
 }

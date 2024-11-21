@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Pusher from 'pusher-js';
 import './styles/ChatPage.css';
+import EmojiGifPicker from './components/EmojiGifPicker'
 
 const FileMessage = ({ messageData }) => {
   const [fileContent, setFileContent] = useState(null);
@@ -122,6 +123,18 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(null);
   const [notificationCooldown, setNotificationCooldown] = useState(false);
   const [lastNotificationTime, setLastNotificationTime] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+// Add this handler function with your other functions
+const handleEmojiSelect = (emojiOrFile) => {
+  if (typeof emojiOrFile === 'string') {
+    // For emojis
+    setInput(prev => prev + emojiOrFile);
+  } else {
+    // For GIFs
+    handleFileUpload({ target: { files: [emojiOrFile] } });
+  }
+};
   const messagesEndRef = useRef(null);
 
   const handleNotification = async () => {
@@ -889,6 +902,18 @@ export default function Home() {
           onChange={handleFileUpload}
           accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
         />
+        <button 
+    className="icon" 
+    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+  >
+    😊
+  </button>
+  {showEmojiPicker && (
+    <EmojiGifPicker 
+      onSelect={handleEmojiSelect}
+      onClose={() => setShowEmojiPicker(false)}
+    />
+  )}
         <textarea
         className="message-input"
         placeholder="Type a message"
