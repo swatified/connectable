@@ -797,12 +797,14 @@ export default function Home() {
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          className="text-gray-600"
         />
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          className="text-gray-600"
         />
         <button onClick={login}>Login</button>
       </div>
