@@ -25,10 +25,10 @@ export async function GET(request) {
     apiUrl.searchParams.append('limit', '20');
     apiUrl.searchParams.append('media_filter', 'tinygif,gif');
 
-    console.log('Fetching from Tenor:', apiUrl.toString());
 
+    console.log('Fetching from Tenor:', apiUrl.toString());
     const response = await fetch(apiUrl);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Tenor API error:', errorText);
@@ -36,7 +36,7 @@ export async function GET(request) {
     }
 
     const data = await response.json();
-    
+
     // Log the response structure
     console.log('Tenor response structure:', JSON.stringify(data, null, 2));
 

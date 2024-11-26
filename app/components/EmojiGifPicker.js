@@ -19,23 +19,18 @@ const EmojiGifPicker = ({ onSelect, onClose }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-  // In SimpleEmojiGifPicker.js, update the GIF mode section:
-
 const searchGifs = async () => {
     if (!searchTerm) return;
     setLoading(true);
-    setGifs([]); // Clear existing GIFs
+    setGifs([]);
     
     try {
-      console.log('Searching for GIFs:', searchTerm); // Debug log
-      
       const response = await fetch(`/api/emojigifpicker?q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
-      
-      console.log('GIF search response:', data); // Debug log
-      
+
       if (data.success && data.results) {
         setGifs(data.results);
+        console.log('Fetched GIF data:', data);
       } else {
         console.error('Error fetching GIFs:', data.error);
       }
