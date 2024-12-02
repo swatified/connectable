@@ -2,21 +2,10 @@ import mongoose from 'mongoose';
 import connectMongo from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-const fileCache = new Map();
-
 export async function GET(req, { params }) {
   try {
     const { fileId } = await params;
-    
-    if (fileCache.has(fileId)) {
-      console.log('Serving from cache');
-      const cachedData = fileCache.get(fileId);
-      return new Response(JSON.stringify(cachedData), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    
+     
     await connectMongo();
     const db = mongoose.connection.db;
     
@@ -51,9 +40,7 @@ export async function GET(req, { params }) {
       contentType: fileMetadata.contentType,
       filename: fileMetadata.filename,
     };
-    
-    fileCache.set(fileId, responsePayload);
-    
+        
     return new Response(JSON.stringify(responsePayload), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
