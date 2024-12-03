@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChatContext } from './context/ChatContext';
 import EmojiGifPicker from './components/EmojiGifPicker';
 import FileMessage from './components/FileMessage';
@@ -36,6 +36,12 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [audioChunks, setAudioChunks] = useState([]);
+  const [totalElapsedTime, setTotalElapsedTime] = useState(0); // Added state for total elapsed time
+  const messagesEndRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const recordingStartTimeRef = useRef(null);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -255,99 +261,134 @@ export default function Home() {
     e.target.value = '';
   };
 
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert('Your browser does not support audio recording.');
       return;
     }
-  
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const audioChunks = [];
-      let seconds = 0;
-  
-      recorder.ondataavailable = (e) => {
-        audioChunks.push(e.data);
-      };
-  
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        
-        const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, {
-          type: 'audio/webm'
-        });
-  
-        const formData = new FormData();
-        formData.append('audio', audioFile);
-        formData.append('fileType', 'audio');
-        
-        try {
-          const res = await fetch('/api/uploadFile', {
-            method: 'POST',
-            body: formData
-          });
-  
-          const data = await res.json();
-  
-          if (data.success) {
-            await sendMessage(JSON.stringify({
-              type: 'file',
-              filename: data.fileName,
-              fileId: data.fileId,
-              contentType: data.type,
-              size: data.size,
-              duration: seconds
-            }), 'file');
-  
-            setIsRecording(false);
-            setRecordingTime('00:00');
-          } else {
-            alert('Failed to upload voice message');
-            setIsRecording(false);
-            setRecordingTime('00:00');
-          }
-        } catch (err) {
-          console.error('Voice message upload error:', err.message);
-          alert('Error uploading voice message');
-          setIsRecording(false);
-          setRecordingTime('00:00');
-        } finally {
-          stream.getTracks().forEach(track => track.stop());
-        }
-      };
-  
-      recorder.start();
-      setMediaRecorder(recorder);
+      let stream;
+      if (!mediaRecorder) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        setMediaRecorder(recorder);
+        setAudioChunks([]);
+
+        recorder.ondataavailable = (e) => {
+          setAudioChunks(chunks => [...chunks, e.data]);
+        };
+      }
+
+      if (isPaused) {
+        mediaRecorder.resume();
+      } else {
+        mediaRecorder.start(1000);
+        recordingStartTimeRef.current = Date.now();
+      }
+
       setIsRecording(true);
-  
-      const timer = setInterval(() => {
-        seconds++;
-        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
-        const secs = String(seconds % 60).padStart(2, '0');
+      setIsPaused(false);
+
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+
+      timerIntervalRef.current = setInterval(() => {
+        const currentElapsedTime = Date.now() - recordingStartTimeRef.current;
+        const totalTime = totalElapsedTime + currentElapsedTime;
+        const mins = String(Math.floor(totalTime / 60000)).padStart(2, '0');
+        const secs = String(Math.floor((totalTime % 60000) / 1000)).padStart(2, '0');
         setRecordingTime(`${mins}:${secs}`);
       }, 1000);
-  
-      setTimeout(() => {
-        if (recorder.state === 'recording') {
-          clearInterval(timer);
-          recorder.stop();
-        }
-      }, 30000);
-  
+
     } catch (err) {
       console.error('Error starting recording:', err);
       alert('Failed to start recording');
       setIsRecording(false);
+      setIsPaused(false);
       setRecordingTime('00:00');
     }
-  };
-  
-  const stopRecording = () => {
+  }, [mediaRecorder, isPaused, totalElapsedTime]);
+
+  const pauseRecording = useCallback(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
+      mediaRecorder.pause();
+      clearInterval(timerIntervalRef.current);
+      setIsPaused(true);
+      setTotalElapsedTime(prevTotal => prevTotal + (Date.now() - recordingStartTimeRef.current));
+    } else if (mediaRecorder && mediaRecorder.state === 'paused') {
+      startRecording();
     }
-  };
+  }, [mediaRecorder, startRecording, setTotalElapsedTime]);
+
+  const sendVoiceMessage = useCallback(async () => {
+    setTotalElapsedTime(0);
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, {
+      type: 'audio/webm'
+    });
+
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+    formData.append('fileType', 'audio');
+
+    try {
+      const res = await fetch('/api/uploadFile', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        await sendMessage(JSON.stringify({
+          type: 'file',
+          filename: data.fileName,
+          fileId: data.fileId,
+          contentType: data.type,
+          size: data.size,
+          duration: Math.round((Date.now() - recordingStartTimeRef.current) / 1000)
+        }), 'file');
+
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime('00:00');
+        setMediaRecorder(null);
+        setAudioChunks([]);
+      } else {
+        alert('Failed to upload voice message');
+      }
+    } catch (err) {
+      console.error('Voice message upload error:', err.message);
+      alert('Error uploading voice message');
+    } finally {
+      setIsRecording(false);
+      setIsPaused(false);
+      setRecordingTime('00:00');
+      recordingStartTimeRef.current = null;
+    }
+  }, [audioChunks, sendMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+      if (mediaRecorder) {
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [mediaRecorder]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -548,11 +589,11 @@ export default function Home() {
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
         />
-        {isRecording ? (
+        {isRecording || isPaused ? (
           <div className="recording-timer">
             <span>🔴 {recordingTime}</span>
-            <button className="stop-button" onClick={stopRecording}>
-              Stop
+            <button className="pause-button" onClick={pauseRecording}>
+              {isPaused ? "Resume" : "Pause"}
             </button>
           </div>
         ) : (
@@ -560,7 +601,10 @@ export default function Home() {
             🎤
           </button>
         )}
-        <button className="send-button" onClick={handleSendMessage}>
+        <button 
+          className="send-button" 
+          onClick={isPaused ? sendVoiceMessage : handleSendMessage}
+        >
           ➤
         </button>
       </footer>
