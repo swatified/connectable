@@ -19,7 +19,7 @@ const EmojiGifPicker = ({ onSelect, onClose }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-const searchGifs = async () => {
+  const searchGifs = async () => {
     if (!searchTerm) return;
     setLoading(true);
     setGifs([]);
@@ -40,62 +40,10 @@ const searchGifs = async () => {
       setLoading(false);
     }
   };
-  
-  // Update the GIF rendering section:
-  {isGifMode && (
-    <div className="p-2">
-      <div className="flex gap-2 mb-2">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && searchGifs()}
-          placeholder="Search GIFs..."
-          className="flex-1 p-2 border rounded"
-        />
-        <button 
-          onClick={searchGifs}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          🔍
-        </button>
-      </div>
-      <div className="h-60 overflow-y-auto">
-        {loading ? (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        ) : gifs.length === 0 ? (
-          <div className="text-center text-gray-500 py-4">
-            {searchTerm ? 'No GIFs found' : 'Search for GIFs'}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {gifs.map((gif) => (
-              <div 
-                key={gif.id} 
-                className="relative group cursor-pointer"
-                onClick={() => handleGifSelect(gif)}
-              >
-                <img
-                  src={gif.media_formats.tinygif.url}
-                  alt={gif.title || 'GIF'}
-                  className="w-full h-32 object-cover rounded-lg hover:opacity-75 transition-opacity"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg" />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-  
-  // Update handleGifSelect function:
+
   const handleGifSelect = async (gif) => {
     try {
-      console.log('Selected GIF:', gif); // Debug log
+      console.log('Selected GIF:', gif);
       
       const fileResponse = await fetch(gif.media_formats.gif.url);
       if (!fileResponse.ok) {
@@ -123,18 +71,18 @@ const searchGifs = async () => {
       className="absolute bottom-16 left-0 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
     >
       <div className="flex border-b border-gray-200">
-      <button
-    className={`flex-1 p-2 text-gray-700 ${!isGifMode ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`}
-    onClick={() => setIsGifMode(false)}
-  >
-    Emojis
-  </button>
-  <button
-    className={`flex-1 p-2 text-gray-700 ${isGifMode ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`}
-    onClick={() => setIsGifMode(true)}
-  >
-    GIFs
-  </button>
+        <button
+          className={`flex-1 p-2 text-gray-700 ${!isGifMode ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`}
+          onClick={() => setIsGifMode(false)}
+        >
+          Emojis
+        </button>
+        <button
+          className={`flex-1 p-2 text-gray-700 ${isGifMode ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`}
+          onClick={() => setIsGifMode(true)}
+        >
+          GIFs
+        </button>
       </div>
 
       {isGifMode ? (

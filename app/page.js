@@ -1,127 +1,42 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Pusher from 'pusher-js';
-import './styles/ChatPage.css';
-import EmojiGifPicker from './components/EmojiGifPicker'
+import React, { useState, useEffect, useRef } from 'react';
+import { useChatContext } from './context/ChatContext';
+import EmojiGifPicker from './components/EmojiGifPicker';
 import FileMessage from './components/FileMessage';
+import './styles/ChatPage.css';
 
 export default function Home() {
-  const [username, setUsername] = useState('');
+  const {
+    username,
+    setUsername,
+    authenticated,
+    messages,
+    savedMessages,
+    showSaved,
+    unreadCount,
+    windowFocused,
+    notificationCooldown,
+    setShowSaved,
+    setWindowFocused,
+    setUnreadCount,
+    login,
+    logout,
+    sendMessage,
+    toggleSaveMessage,
+    clearDatabase,
+    handleNotification
+  } = useChatContext();
+
   const [password, setPassword] = useState('');
-  const [authenticated, setAuthenticated] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [savedMessages, setSavedMessages] = useState([]);
-  const [showSaved, setShowSaved] = useState(false);
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState('00:00');
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [windowFocused, setWindowFocused] = useState(true);
-  const notificationSound = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
-  const [notificationCooldown, setNotificationCooldown] = useState(false);
-  const [lastNotificationTime, setLastNotificationTime] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-// Add this handler function with your other functions
-const handleEmojiSelect = (emojiOrFile) => {
-  if (typeof emojiOrFile === 'string') {
-    // For emojis
-    setInput(prev => prev + emojiOrFile);
-  } else {
-    // For GIFs
-    handleFileUpload({ target: { files: [emojiOrFile] } });
-  }
-};
-  const messagesEndRef = useRef(null);
-
-  const handleNotification = async () => {
-    if (notificationCooldown) {
-      const remainingTime = Math.ceil((300000 - (Date.now() - lastNotificationTime)) / 60000);
-      alert(`Please wait ${remainingTime} minutes before sending another notification`);
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/sendNotification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromUser: username,
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setNotificationCooldown(true);
-        setLastNotificationTime(Date.now());
-        alert(`Notification sent to ${username === 'user1' ? 'user2' : 'user1'}!`);
-        
-        setTimeout(() => {
-          setNotificationCooldown(false);
-        }, 300000);
-      } else {
-        alert('Failed to send notification: ' + (data.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error sending notification:', error);
-      alert('Error sending notification');
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, savedMessages, showSaved]);
-
-  const fetchMessages = async () => {
-    try {
-      const res = await fetch('/api/getMessages');
-      const data = await res.json();
-      if (data.success) {
-        setMessages(data.messages);
-      }
-    } catch (error) {
-      console.error('Failed to fetch messages:', error.message);
-    }
-  };
-
-  const fetchSavedMessages = async () => {
-    try {
-      const res = await fetch('/api/getSavedMessages');
-      const data = await res.json();
-      if (data.success) {
-        setSavedMessages(data.messages);
-      }
-    } catch (error) {
-      console.error('Failed to fetch saved messages:', error);
-    }
-  };
-
-  useEffect(() => {
-    const storedUsername = localStorage.getItem('username');
-    if (storedUsername) {
-      setUsername(storedUsername);
-      setAuthenticated(true);
-      fetchMessages();
-      fetchSavedMessages();
-      const cleanupPusher = setupPusher();
-
-      return () => {
-        if (cleanupPusher) cleanupPusher();
-      };
-    }
-  }, []);
-
-  useEffect(() => {
-    notificationSound.current = new Audio('/notification.mp3');
-  }, []);
-  
   useEffect(() => {
     const handleFocus = () => {
       setWindowFocused(true);
@@ -142,7 +57,7 @@ const handleEmojiSelect = (emojiOrFile) => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
     };
-  }, []);
+  }, [setWindowFocused, setUnreadCount]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -165,37 +80,30 @@ const handleEmojiSelect = (emojiOrFile) => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };
-  }, []);
+  }, [setWindowFocused, setUnreadCount]);
 
-  const login = async () => {
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, savedMessages, showSaved]);
+
+  const handleLogin = async () => {
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem('username', username);
-        setAuthenticated(true);
-        fetchMessages();
-        fetchSavedMessages();
-        setupPusher();
-      } else {
-        alert('Invalid username or password');
-      }
+      await login(password);
     } catch (error) {
-      console.error('Login failed:', error.message);
+      alert(error.message);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('username');
-    setAuthenticated(false);
-    setUsername('');
-    setMessages([]);
-    setSavedMessages([]);
+  const handleEmojiSelect = (emojiOrFile) => {
+    if (typeof emojiOrFile === 'string') {
+      setInput(prev => prev + emojiOrFile);
+    } else {
+      handleFileUpload({ target: { files: [emojiOrFile] } });
+    }
   };
 
   const handlePaste = async (e) => {
@@ -259,15 +167,7 @@ const handleEmojiSelect = (emojiOrFile) => {
           size: fileSize
         };
   
-        await fetch('/api/sendMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
-            content: JSON.stringify(fileMessage),
-            messageType: 'file'
-          }),
-        });
+        await sendMessage(JSON.stringify(fileMessage), 'file');
       } else {
         setInput(`Failed to upload ${file.name || 'clipboard content'}: ${data.error}`);
         setUploadProgress(null);
@@ -307,8 +207,15 @@ const handleEmojiSelect = (emojiOrFile) => {
     if (files.length === 0) return;
 
     const file = files[0];
+    await handleFileUpload({ target: { files: [file] } });
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
     const fileSize = (file.size / 1024 / 1024).toFixed(2);
-    setInput(`Uploading: ${file.name} (${fileSize} MB)`);
+    setInput(`Uploading file: ${file.name} (${fileSize} MB)...`);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -325,7 +232,7 @@ const handleEmojiSelect = (emojiOrFile) => {
       if (data.success) {
         setInput('');
         setUploadProgress(null);
-        
+
         const fileMessage = {
           type: 'file',
           filename: data.fileName,
@@ -334,171 +241,15 @@ const handleEmojiSelect = (emojiOrFile) => {
           size: fileSize
         };
 
-        await fetch('/api/sendMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
-            content: JSON.stringify(fileMessage),
-            messageType: 'file'
-          }),
-        });
+        await sendMessage(JSON.stringify(fileMessage), 'file');
       } else {
         setInput(`Failed to upload ${file.name}: ${data.error}`);
         setUploadProgress(null);
       }
     } catch (err) {
-      console.error('Upload error:', err.message);
-      setInput(`Error uploading ${file.name}: ${err.message}`);
-      setUploadProgress(null);
-    }
-  };
-
-  const setupPusher = () => {
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-      forceTLS: true,
-    });
-
-    const channel = pusher.subscribe('chat-channel');
-    
-    channel.bind('message-event', (data) => {
-      const formattedMessage = {
-        _id: data._id || Date.now().toString(),
-        username: data.username,
-        content: data.content,
-        timestamp: data.timestamp || new Date().toISOString(),
-      };
-
-      if (data.username !== username && document.hidden) {
-        try {
-          notificationSound.current.volume = 0.5;
-          notificationSound.current.play().catch(err => 
-            console.error('Error playing sound:', err)
-          );
-        } catch (error) {
-          console.error('Sound playback error:', error);
-        }
-
-        setUnreadCount(prev => {
-          const newCount = prev + 1;
-          document.title = `Chat Room (${newCount})`;
-          return newCount;
-        });
-      }
-
-      setMessages((prevMessages) => {
-        const messageExists = prevMessages.some(msg => 
-          msg.content === formattedMessage.content && 
-          msg.username === formattedMessage.username
-        );
-        
-        if (messageExists) {
-          return prevMessages;
-        }
-
-        return [...prevMessages, formattedMessage];
-      });
-
-      scrollToBottom();
-    });
-
-    return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
-    };
-  };
-    
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-  
-    try {
-      const formattedContent = formatMessage(input);
-  
-      const res = await fetch('/api/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username, 
-          content: formattedContent,
-          _id: Date.now().toString(),
-          timestamp: new Date().toISOString()
-        }),
-      });
-  
-      const data = await res.json();
-      if (data.success) {
-        setInput('');
-      }
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.ctrlKey) {
-      e.preventDefault();
-      sendMessage();
-    } else if (e.key === 'Enter' && e.ctrlKey) {
-      e.preventDefault();
-      setInput((prev) => `${prev}\n`);
-    }
-  };
-
-  const formatMessage = (message) => {
-    let formatted = message;
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
-    formatted = formatted.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler">$1</span>');
-    formatted = formatted.replace(/\n/g, '<br>');
-    return formatted;
-  };
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const fileSize = (file.size / 1024 / 1024).toFixed(2);
-    setInput(`Uploading file: ${file.name} (${fileSize} MB)...`);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const res = await fetch('/api/uploadFile', {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setInput('');
-
-        const fileMessage = {
-          type: 'file',
-          filename: data.fileName,
-          fileId: data.fileId,
-          contentType: data.type,
-          size: fileSize
-        };
-
-        await fetch('/api/sendMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
-            content: JSON.stringify(fileMessage),
-            messageType: 'file'
-          }),
-        });
-      } else {
-        setInput(`Failed to upload ${file.name}: ${data.error}`);
-      }
-    } catch (err) {
       console.error('File upload error:', err.message);
       setInput(`Error uploading ${file.name}: ${err.message}`);
+      setUploadProgress(null);
     }
 
     e.target.value = '';
@@ -540,22 +291,14 @@ const handleEmojiSelect = (emojiOrFile) => {
           const data = await res.json();
   
           if (data.success) {
-            await fetch('/api/sendMessage', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                username,
-                content: JSON.stringify({
-                  type: 'file',
-                  filename: data.fileName,
-                  fileId: data.fileId,
-                  contentType: data.type,
-                  size: data.size,
-                  duration: seconds
-                }),
-                messageType: 'file'
-              }),
-            });
+            await sendMessage(JSON.stringify({
+              type: 'file',
+              filename: data.fileName,
+              fileId: data.fileId,
+              contentType: data.type,
+              size: data.size,
+              duration: seconds
+            }), 'file');
   
             setIsRecording(false);
             setRecordingTime('00:00');
@@ -606,65 +349,35 @@ const handleEmojiSelect = (emojiOrFile) => {
     }
   };
 
-  const toggleSaveMessage = async (msg) => {
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
     try {
-      const isAlreadySaved = savedMessages.some(m => m.originalMessageId === msg._id);
-
-      if (isAlreadySaved) {
-        const res = await fetch(`/api/saveMessage/${msg._id}`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (data.success) {
-          setSavedMessages(prev => prev.filter(m => m.originalMessageId !== msg._id));
-        }
-      } else {
-        const res = await fetch('/api/saveMessage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            originalMessageId: msg._id,
-            username: msg.username,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            fileInfo: msg.fileInfo,
-            fileId: msg.fileId,
-            messageType: msg.messageType
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setSavedMessages(prev => [...prev, data.savedMessage]);
-        }
-      }
+      const formattedContent = formatMessage(input);
+      await sendMessage(formattedContent);
+      setInput('');
     } catch (error) {
-      console.error('Failed to toggle save message:', error);
+      console.error('Failed to send message:', error);
     }
   };
 
-  const clearDatabase = async () => {
-    if (window.confirm('Are you sure? This will delete all messages permanently.')) {
-      try {
-        const res = await fetch('/api/clearMessages', {
-          method: 'DELETE'
-        });
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
-        const data = await res.json();
-        if (data.success) {
-          setMessages([]);
-          console.log('Database cleared successfully');
-        } else {
-          throw new Error(data.error || 'Failed to clear database');
-        }
-      } catch (error) {
-        console.error('Failed to clear database:', error);
-        alert('Failed to clear messages. Please try again.');
-      }
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.ctrlKey) {
+      e.preventDefault();
+      handleSendMessage();
+    } else if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      setInput((prev) => `${prev}\n`);
     }
+  };
+
+  const formatMessage = (message) => {
+    let formatted = message;
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
+    formatted = formatted.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler">$1</span>');
+    formatted = formatted.replace(/\n/g, '<br>');
+    return formatted;
   };
 
   const renderMessageContent = (msg) => {
@@ -730,40 +443,40 @@ const handleEmojiSelect = (emojiOrFile) => {
           onChange={(e) => setPassword(e.target.value)}
           className="text-gray-600"
         />
-        <button onClick={login}>Login</button>
+        <button onClick={handleLogin}>Login</button>
       </div>
     );
   }
 
   return (
     <div 
-    className="chat-container"
-    onDragEnter={handleDragEnter}
-    onDragOver={handleDragOver}
-    onDragLeave={handleDragLeave}
-    onDrop={handleDrop}
-  >
-    {isDragging && (
-      <div className="drag-overlay">
-        <div className="drag-overlay-content">
-          <i>📁</i>
-          <p>Drop media here to upload</p>
+      className="chat-container"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="drag-overlay">
+          <div className="drag-overlay-content">
+            <i>📁</i>
+            <p>Drop media here to upload</p>
+          </div>
         </div>
-      </div>
-    )}
+      )}
       <header className="chat-header">
-      <h1>Chat Room</h1>
+        <h1>Chat Room</h1>
         <div className="header-buttons">
-        <button
-    className={`notification-bell ${notificationCooldown ? 'cooldown' : ''}`}
-    onClick={handleNotification}
-    disabled={notificationCooldown}
-    title={notificationCooldown ? "Notification on cooldown" : "Send notification"}
-  >
-    <span style={{ color: notificationCooldown ? '#808080' : '#FFD700' }}>
-      {notificationCooldown ? '🔔' : '🔔'}
-    </span>
-  </button>
+          <button
+            className={`notification-bell ${notificationCooldown ? 'cooldown' : ''}`}
+            onClick={handleNotification}
+            disabled={notificationCooldown}
+            title={notificationCooldown ? "Notification on cooldown" : "Send notification"}
+          >
+            <span style={{ color: notificationCooldown ? '#808080' : '#FFD700' }}>
+              {notificationCooldown ? '🔔' : '🔔'}
+            </span>
+          </button>
           <button
             className={`save-toggle ${showSaved ? 'active' : ''}`}
             onClick={() => setShowSaved(!showSaved)}
@@ -792,19 +505,19 @@ const handleEmojiSelect = (emojiOrFile) => {
               {renderMessage(msg)}
             </div>
           ))}
-          <div ref={messagesEndRef} /> {/* This is where we add the scroll ref */}
+          <div ref={messagesEndRef} />
         </div>
       </main>
 
       <footer className="chat-footer">
-      {uploadProgress !== null && (
-        <div className="upload-progress">
-          <div 
-            className="upload-progress-bar" 
-            style={{ width: `${uploadProgress}%` }}
-          />
-        </div>
-      )}
+        {uploadProgress !== null && (
+          <div className="upload-progress">
+            <div 
+              className="upload-progress-bar" 
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        )}
         <label htmlFor="file-upload" className="icon">
           📎
         </label>
@@ -816,24 +529,24 @@ const handleEmojiSelect = (emojiOrFile) => {
           accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
         />
         <button 
-    className="icon" 
-    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-  >
-    😊
-  </button>
-  {showEmojiPicker && (
-    <EmojiGifPicker 
-      onSelect={handleEmojiSelect}
-      onClose={() => setShowEmojiPicker(false)}
-    />
-  )}
+          className="icon" 
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        >
+          😊
+        </button>
+        {showEmojiPicker && (
+          <EmojiGifPicker 
+            onSelect={handleEmojiSelect}
+            onClose={() => setShowEmojiPicker(false)}
+          />
+        )}
         <textarea
-        className="message-input"
-        placeholder="Type a message"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
+          className="message-input"
+          placeholder="Type a message"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
         />
         {isRecording ? (
           <div className="recording-timer">
@@ -847,7 +560,7 @@ const handleEmojiSelect = (emojiOrFile) => {
             🎤
           </button>
         )}
-        <button className="send-button" onClick={sendMessage}>
+        <button className="send-button" onClick={handleSendMessage}>
           ➤
         </button>
       </footer>
