@@ -1,36 +1,21 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Connectable: *the chat application* 💬
 
-## Getting Started
+> A brief walkthrough to all the features one-by-one
 
-First, run the development server:
+## Real-time Messaging 📧
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Real-time messaging functionality is implemented using [Pusher](https://pusher.com/) for websocket connections and MongoDB for message persistence. This combination enables instant message delivery while maintaining a reliable message history.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### How it works:
+- Messages are stored in MongoDB for persistence and message history
+- Pusher handles the real-time websocket connections between users
+- When a message is sent, it's saved to MongoDB and simultaneously broadcast through Pusher to all connected clients
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## The Fun Elements ✨
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+<table style="width: 100%;">
+  <tr>
+    <td style="width: 33%;"><img src="1.png"></td>
+    <td style="width: 33%;"><img src="2.png"></td>
+    <td style="width: 33%;"><img src="3.png"></td>
+  </tr>
