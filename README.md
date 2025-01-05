@@ -111,12 +111,6 @@ Real-time messaging functionality is implemented using [Pusher](https://pusher.c
     <tr>
         <td><img src="/public/images/save4.png"></td>
     </tr>
-    <tr>
-        <td><img src="/public/images/save5.png"></td>
-    </tr>
-    <tr>
-        <td><img src="/public/images/save6.png"></td>
-    </tr>
 </table>
 <br/><br/>
 
