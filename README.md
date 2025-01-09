@@ -25,8 +25,8 @@ Real-time messaging functionality is implemented using [Pusher](https://pusher.c
 ### 1. Text Decorations
 <table style="width: 100%;">
   <tr>
-    <td><img src="/public/images/text2.png"></td>
     <td><img src="/public/images/text1.png"></td>
+    <td><img src="/public/images/text2.png"></td>
   </tr>
 </table>
 <br/>
