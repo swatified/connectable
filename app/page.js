@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChatContext } from './context/ChatContext';
 import EmojiGifPicker from './components/EmojiGifPicker';
 import FileMessage from './components/FileMessage';
@@ -38,10 +38,43 @@ export default function Home() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [audioChunks, setAudioChunks] = useState([]);
-  const [totalElapsedTime, setTotalElapsedTime] = useState(0); // Added state for total elapsed time
+  const [totalElapsedTime, setTotalElapsedTime] = useState(0);
   const messagesEndRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const recordingStartTimeRef = useRef(null);
+
+  const emojiShortcodeMap = {
+    ':joy:': '😂',
+    ':smile:': '😊',
+    ':wink:': '😉',
+    ':heart:': '❤️',
+    ':thumbsup:': '👍',
+    ':fire:': '🔥',
+    ':sunglasses:': '😎',
+    ':star:': '⭐',
+    ':thinking:': '🤔',
+    ':laughing:': '😆',
+    ':clap:': '👏',
+    ':tada:': '🎉',
+    ':muscle:': '💪',
+    ':rocket:': '🚀',
+    ':alien:': '👽',
+    ':beer:': '🍺',
+    ':coffee:': '☕',
+    ':apple:': '🍎',
+    ':dog:': '🐕',
+    ':cat:': '🐈',
+    ':sun:': '🌞',
+    ':moon:': '🌜',
+    ':earth:': '🌍',
+  };
+
+  const convertToEmoji = (text) => {
+    return text.replace(/:\w+:/g, (match) => {
+        const normalizedMatch = match.toLowerCase();
+        return emojiShortcodeMap[normalizedMatch] || match;
+    });
+  };
 
   useEffect(() => {
     const handleFocus = () => {
@@ -49,16 +82,16 @@ export default function Home() {
       setUnreadCount(0);
       document.title = 'Chat Room';
     };
-  
+
     const handleBlur = () => {
       setWindowFocused(false);
     };
-  
+
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
-  
+
     setWindowFocused(document.hasFocus());
-  
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
@@ -75,12 +108,12 @@ export default function Home() {
         document.title = 'Chat Room';
       }
     };
-  
+
     if (typeof document !== 'undefined') {
       setWindowFocused(!document.hidden);
       document.addEventListener('visibilitychange', handleVisibilityChange);
     }
-  
+
     return () => {
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -119,52 +152,52 @@ export default function Home() {
       await handleFileUploadFromClipboard(file);
       return;
     }
-  
+
     const clipboardItems = e.clipboardData.items;
     const items = [...clipboardItems].filter(item => {
       return item.type.indexOf('image/') !== -1 ||
              item.type.indexOf('video/') !== -1 ||
              item.type === 'image/gif';
     });
-  
+
     if (items.length === 0) return;
-  
+
     e.preventDefault();
     const item = items[0];
     const blob = item.getAsFile();
-    
+
     if (!blob) return;
-  
+
     await handleFileUploadFromClipboard(blob);
   };
-  
+
   const handleFileUploadFromClipboard = async (file) => {
     const fileSize = (file.size / 1024 / 1024).toFixed(2);
     setInput(`Uploading: ${file.name || 'clipboard content'} (${fileSize} MB)`);
-  
+
     const formData = new FormData();
-    
+
     if (!file.name) {
       const extension = file.type.split('/')[1] || 'png';
       const fileName = `clipboard-${Date.now()}.${extension}`;
       file = new File([file], fileName, { type: file.type });
     }
-    
+
     formData.append('file', file);
-  
+
     try {
       setUploadProgress(0);
       const res = await fetch('/api/uploadFile', {
         method: 'POST',
         body: formData
       });
-  
+
       const data = await res.json();
-  
+
       if (data.success) {
         setInput('');
         setUploadProgress(null);
-  
+
         const fileMessage = {
           type: 'file',
           filename: data.fileName,
@@ -172,7 +205,7 @@ export default function Home() {
           contentType: data.type,
           size: fileSize
         };
-  
+
         await sendMessage(JSON.stringify(fileMessage), 'file');
       } else {
         setInput(`Failed to upload ${file.name || 'clipboard content'}: ${data.error}`);
@@ -392,9 +425,11 @@ export default function Home() {
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
+
     try {
       const formattedContent = formatMessage(input);
-      await sendMessage(formattedContent);
+      const contentWithEmojis = convertToEmoji(formattedContent);
+      await sendMessage(contentWithEmojis);
       setInput('');
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -553,8 +588,8 @@ export default function Home() {
       <footer className="chat-footer">
         {uploadProgress !== null && (
           <div className="upload-progress">
-            <div 
-              className="upload-progress-bar" 
+            <div
+              className="upload-progress-bar"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
@@ -569,14 +604,14 @@ export default function Home() {
           onChange={handleFileUpload}
           accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
         />
-        <button 
-          className="icon" 
+        <button
+          className="icon"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
         >
           😊
         </button>
         {showEmojiPicker && (
-          <EmojiGifPicker 
+          <EmojiGifPicker
             onSelect={handleEmojiSelect}
             onClose={() => setShowEmojiPicker(false)}
           />
@@ -601,8 +636,8 @@ export default function Home() {
             🎤
           </button>
         )}
-        <button 
-          className="send-button" 
+        <button
+          className="send-button"
           onClick={isPaused ? sendVoiceMessage : handleSendMessage}
         >
           ➤
