@@ -1,0 +1,12 @@
+.git
+.github
+.next
+.env
+.env.*
+node_modules
+README.md
+.gitignore
+.eslintrc.json
+docker-compose.yml
+Dockerfile
+.dockerignore

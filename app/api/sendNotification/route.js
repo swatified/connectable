@@ -1,8 +1,13 @@
 import twilio from 'twilio';
 
+let client;
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
+
+// Only initialize Twilio if credentials are available
+if (accountSid && authToken) {
+  client = twilio(accountSid, authToken);
+}
 
 const USER_PHONE_MAPPING = {
   user1: process.env.USER1_PHONE,
@@ -10,18 +15,39 @@ const USER_PHONE_MAPPING = {
 };
 
 const NOTIFICATION_MESSAGES = {
-  user1: "Checkout the chat, YOU MORON!",
-  user2: "subscribe today and get 50% off on the deals."
+  user1: "Check out the chat!",
+  user2: "You have new messages waiting."
 };
 
 export async function POST(req) {
   try {
-    const { fromUser } = await req.json();
+    const body = await req.json();
+    const { fromUser } = body;
+
+    if (!fromUser) {
+      return Response.json({ 
+        success: false, 
+        error: 'fromUser is required' 
+      });
+    }
+
+    // If Twilio is not configured, return success without sending SMS
+    if (!client) {
+      console.log('Twilio credentials not configured, skipping SMS notification');
+      return Response.json({ 
+        success: true,
+        message: 'Notification handled (SMS disabled - Twilio not configured)'
+      });
+    }
+
     const toUser = fromUser === 'user1' ? 'user2' : 'user1';
     const toPhone = USER_PHONE_MAPPING[toUser];
-    
+
     if (!toPhone) {
-      return Response.json({ success: false, error: 'Recipient not found' });
+      return Response.json({ 
+        success: false, 
+        error: 'Recipient phone number not found' 
+      });
     }
 
     await client.messages.create({
@@ -32,7 +58,10 @@ export async function POST(req) {
 
     return Response.json({ success: true });
   } catch (error) {
-    console.error('Twilio error:', error);
-    return Response.json({ success: false, error: error.message });
+    console.error('Notification error:', error);
+    return Response.json({ 
+      success: false, 
+      error: error.message || 'Internal server error'
+    });
   }
 }

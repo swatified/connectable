@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Pusher from 'pusher-js';
 import './styles/ChatPage.css';
 import EmojiGifPicker from './components/EmojiGifPicker'
@@ -455,12 +455,17 @@ const handleEmojiSelect = (emojiOrFile) => {
     }
   };
 
-  const setupPusher = () => {
+  const setupPusher = useCallback(() => {
+    if (!process.env.NEXT_PUBLIC_PUSHER_KEY || !process.env.NEXT_PUBLIC_PUSHER_CLUSTER) {
+      console.error('Pusher environment variables not properly configured');
+      return;
+    }
+  
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-      forceTLS: true,
+      forceTLS: true
     });
-
+  
     const channel = pusher.subscribe('chat-channel');
     
     channel.bind('message-event', (data) => {
@@ -470,8 +475,8 @@ const handleEmojiSelect = (emojiOrFile) => {
         content: data.content,
         timestamp: data.timestamp || new Date().toISOString(),
       };
-
-      if (data.username !== username && document.hidden) {
+  
+      if (data.username !== username && !windowFocused) {
         try {
           notificationSound.current.volume = 0.5;
           notificationSound.current.play().catch(err => 
@@ -480,14 +485,14 @@ const handleEmojiSelect = (emojiOrFile) => {
         } catch (error) {
           console.error('Sound playback error:', error);
         }
-
+  
         setUnreadCount(prev => {
           const newCount = prev + 1;
           document.title = `Chat Room (${newCount})`;
           return newCount;
         });
       }
-
+  
       setMessages((prevMessages) => {
         const messageExists = prevMessages.some(msg => 
           msg.content === formattedMessage.content && 
@@ -497,18 +502,18 @@ const handleEmojiSelect = (emojiOrFile) => {
         if (messageExists) {
           return prevMessages;
         }
-
+  
         return [...prevMessages, formattedMessage];
       });
-
+  
       scrollToBottom();
     });
-
+  
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
     };
-  };
+  }, [username, scrollToBottom, notificationSound, windowFocused]);
     
   const sendMessage = async () => {
     if (!input.trim()) return;
