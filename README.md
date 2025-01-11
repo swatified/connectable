@@ -143,6 +143,9 @@ Real-time messaging functionality is implemented using [Pusher](https://pusher.c
 Contributions are welcome! If you find a bug or have a feature request, feel free to open an issue or submit a pull request.
 <br/><br/>
 
+# Psst.. You can star this repo
+![Screenshot 2025-01-11 134424](https://github.com/user-attachments/assets/07a3cf3b-b6b0-4b30-bc18-0812702e3eb7)
+
 ## Contact Me
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2.svg?style=for-the-badge&logo=LinkedIn&logoColor=white)](https://www.linkedin.com/in/dev-swati/)
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://www.github.com/swatified/)
